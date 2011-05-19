@@ -1,0 +1,6 @@
+wireless.@wifi-iface[0]=wifi-iface
+wireless.@wifi-iface[0].device=radio0
+wireless.@wifi-iface[0].network=lan
+wireless.@wifi-iface[0].ssid=OpenWrt
+wireless.@wifi-iface[0].encryption=none
+wireless.@wifi-iface[0].mode=client

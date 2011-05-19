@@ -1,0 +1,7 @@
+config HIWIFI_FIRMWARE_VERSION
+        depends on PACKAGE_hiwifi-base-files
+        string
+		default "HiWiFi"
+        prompt "Firmware Name"
+        help
+          Firmware name.

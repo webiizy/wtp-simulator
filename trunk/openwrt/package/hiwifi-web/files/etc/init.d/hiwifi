@@ -1,0 +1,57 @@
+#!/bin/sh /etc/rc.common
+#
+# identification of the device
+#
+START=90
+
+start() {
+. /lib/config/uci.sh
+. /usr/lib/webif/functions.sh
+
+	# initialize default webif theme
+	if [ ! -e /etc/config/wireless ]; then
+		wifi detect > /etc/config/wireless
+		
+		uci_set "wireless" "radio0" "disabled" "0"
+		uci_set "wireless" "radio1" "disabled" "0"
+		uci_set "wireless" "radio2" "disabled" "0"
+		
+		uci_commit "wireless"
+		/etc/init.d/wirless
+		exit
+	fi
+
+	#detect device
+	device_name=`cat /proc/cpuinfo | sed -n -e 's/^machine\t*: \(.*\)$/\1/gp' | cut -c10-`
+	
+	if [ "$CONFIG_general_firstboot" = "1" ]; then
+		opkg update
+		# force re-initialization of extension package lists
+		/usr/lib/webif/webif-mklanglist.sh
+		/usr/lib/webif/webif-mkthemelist.sh
+		uci_set "webif" "general" "firstboot" "0"
+		
+		uci_commit "webif"
+		reboot & exit
+	fi
+
+	#
+	# if any variables changed, commit the change
+	#
+
+	[ "$device_name" != "$CONFIG_general_device_name" ] && {
+		echo "Device: $device_name"
+		echo "Committing new device id ..."
+		uci_set "webif" "general" "device_name" "$device_name"
+	}
+
+	if [ -e "/tmp/.uci/webif" ]; then
+		uci_commit "webif"
+	fi
+	
+	# add by jie
+	dmesg > /tmp/dmesg
+	if [ -e "/usr/lib/webif/channels.lst" ]; then
+		rm /usr/lib/webif/channels.lst
+	fi
+}
