@@ -331,4 +331,5 @@ struct ieee80211_roam {
 	u_int8_t rate11g;	/* for 11g */
 	u_int8_t rate11bOnly;	/* for 11b sta */
 };
+#define	IEEE80211_RATE_MCS	0x80
 #endif /* _NET80211__IEEE80211_H_ */
