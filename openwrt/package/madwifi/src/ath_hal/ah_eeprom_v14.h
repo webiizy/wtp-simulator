@@ -76,6 +76,7 @@
 #define AR5416_EEPMISC_BIG_ENDIAN    	0x01
 #define FREQ2FBIN(x,y) 			((y) ? ((x) - 2300) : (((x) - 4800) / 5))
 #define AR5416_MAX_CHAINS            	3
+#define	AR5416_PWR_TABLE_OFFSET_DB	-5
 #define AR5416_ANT_16S               	25
 
 #define AR5416_NUM_ANT_CHAIN_FIELDS     7

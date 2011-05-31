@@ -592,6 +592,14 @@ ath_attach(u_int16_t devid, struct net_device *dev, HAL_BUS_TAG tag)
 	}
 	sc->sc_ah = ah;
 
+	/* WAR for AR7100 PCI bug */
+#ifdef CONFIG_ATHEROS_AR71XX
+	if ((ar_device(sc) >= 5210) && (ar_device(sc) < 5416)) {
+		ath_hal_setcapability(ah, 36, 0, 0, NULL);
+		ath_hal_setcapability(ah, 37, 0, 0, NULL);
+	}
+#endif
+
 	/*
 	 * TPC support can be done either with a global cap or
 	 * per-packet support.  The latter is not available on
@@ -7415,7 +7423,7 @@ ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 	if (qtype == HAL_TX_QUEUE_UAPSD)
 		qi.tqi_qflags = HAL_TXQ_TXDESCINT_ENABLE;
 	else
-		qi.tqi_qflags = HAL_TXQ_TXEOLINT_ENABLE | 
+		qi.tqi_qflags = HAL_TXQ_TXEOLINT_ENABLE | HAL_TXQ_TXOKINT_ENABLE |
 			HAL_TXQ_TXDESCINT_ENABLE;
 	qnum = ath_hal_setuptxqueue(ah, qtype, &qi);
 	if (qnum < 0) {

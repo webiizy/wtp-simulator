@@ -157,9 +157,6 @@ ath_hal_computetxtime(struct ath_hal *ah,
 	switch (rates->info[rateix].phy) {
 
 	case IEEE80211_T_CCK:
-#define CCK_SIFS_TIME        10
-#define CCK_PREAMBLE_BITS   144
-#define CCK_PLCP_BITS        48
 		phyTime		= CCK_PREAMBLE_BITS + CCK_PLCP_BITS;
 		if (shortPreamble && rates->info[rateix].shortPreamble)
 			phyTime >>= 1;
@@ -167,46 +164,27 @@ ath_hal_computetxtime(struct ath_hal *ah,
 		txTime		= CCK_SIFS_TIME + phyTime
 				+ ((numBits * 1000)/kbps);
 		break;
-#undef CCK_SIFS_TIME
-#undef CCK_PREAMBLE_BITS
-#undef CCK_PLCP_BITS
-
 	case IEEE80211_T_OFDM:
-#define OFDM_SIFS_TIME        16
-#define OFDM_PREAMBLE_TIME    20
-#define OFDM_PLCP_BITS        22
-#define OFDM_SYMBOL_TIME       4
-
-#define OFDM_SIFS_TIME_HALF	32
-#define OFDM_PREAMBLE_TIME_HALF	40
-#define OFDM_PLCP_BITS_HALF	22
-#define OFDM_SYMBOL_TIME_HALF	8
-
-#define OFDM_SIFS_TIME_QUARTER 		64
-#define OFDM_PREAMBLE_TIME_QUARTER	80
-#define OFDM_PLCP_BITS_QUARTER		22
-#define OFDM_SYMBOL_TIME_QUARTER	16
-
 		if (AH_PRIVATE(ah)->ah_curchan && 
 			IS_CHAN_QUARTER_RATE(AH_PRIVATE(ah)->ah_curchan)) {
-			bitsPerSymbol	= (kbps * OFDM_SYMBOL_TIME_QUARTER) / 1000;
+			bitsPerSymbol	= (kbps * OFDM_QUARTER_SYMBOL_TIME) / 1000;
 			HALASSERT(bitsPerSymbol != 0);
 
 			numBits		= OFDM_PLCP_BITS + (frameLen << 3);
 			numSymbols	= howmany(numBits, bitsPerSymbol);
-			txTime		= OFDM_SIFS_TIME_QUARTER 
-						+ OFDM_PREAMBLE_TIME_QUARTER
-					+ (numSymbols * OFDM_SYMBOL_TIME_QUARTER);
+			txTime		= OFDM_QUARTER_SIFS_TIME 
+						+ OFDM_QUARTER_PREAMBLE_TIME
+					+ (numSymbols * OFDM_QUARTER_SYMBOL_TIME);
 		} else if (AH_PRIVATE(ah)->ah_curchan &&
 				IS_CHAN_HALF_RATE(AH_PRIVATE(ah)->ah_curchan)) {
-			bitsPerSymbol	= (kbps * OFDM_SYMBOL_TIME_HALF) / 1000;
+			bitsPerSymbol	= (kbps * OFDM_HALF_SYMBOL_TIME) / 1000;
 			HALASSERT(bitsPerSymbol != 0);
 
 			numBits		= OFDM_PLCP_BITS + (frameLen << 3);
 			numSymbols	= howmany(numBits, bitsPerSymbol);
-			txTime		= OFDM_SIFS_TIME_HALF + 
-						OFDM_PREAMBLE_TIME_HALF
-					+ (numSymbols * OFDM_SYMBOL_TIME_HALF);
+			txTime		= OFDM_HALF_SIFS_TIME + 
+						OFDM_HALF_PREAMBLE_TIME
+					+ (numSymbols * OFDM_HALF_SYMBOL_TIME);
 		} else { /* full rate channel */
 			bitsPerSymbol	= (kbps * OFDM_SYMBOL_TIME) / 1000;
 			HALASSERT(bitsPerSymbol != 0);
@@ -217,31 +195,16 @@ ath_hal_computetxtime(struct ath_hal *ah,
 					+ (numSymbols * OFDM_SYMBOL_TIME);
 		}
 		break;
-
-#undef OFDM_SIFS_TIME
-#undef OFDM_PREAMBLE_TIME
-#undef OFDM_PLCP_BITS
-#undef OFDM_SYMBOL_TIME
-
 	case IEEE80211_T_TURBO:
-#define TURBO_SIFS_TIME         8
-#define TURBO_PREAMBLE_TIME    14
-#define TURBO_PLCP_BITS        22
-#define TURBO_SYMBOL_TIME       4
-		/* we still save OFDM rates in kbps - so double them */
-		bitsPerSymbol = ((kbps << 1) * TURBO_SYMBOL_TIME) / 1000;
+		bitsPerSymbol	= (kbps * TURBO_SYMBOL_TIME) / 1000;
 		HALASSERT(bitsPerSymbol != 0);
 
-		numBits       = TURBO_PLCP_BITS + (frameLen << 3);
-		numSymbols    = howmany(numBits, bitsPerSymbol);
-		txTime        = TURBO_SIFS_TIME + TURBO_PREAMBLE_TIME
-			      + (numSymbols * TURBO_SYMBOL_TIME);
+		numBits		= TURBO_PLCP_BITS + (frameLen << 3);
+		numSymbols	= howmany(numBits, bitsPerSymbol);
+		txTime		= TURBO_SIFS_TIME
+				+ TURBO_PREAMBLE_TIME
+				+ (numSymbols * TURBO_SYMBOL_TIME);
 		break;
-#undef TURBO_SIFS_TIME
-#undef TURBO_PREAMBLE_TIME
-#undef TURBO_PLCP_BITS
-#undef TURBO_SYMBOL_TIME
-
 	default:
 		HALDEBUG(ah, HAL_DEBUG_PHYIO,
 		    "%s: unknown phy %u (rate ix %u)\n",

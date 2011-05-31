@@ -44,6 +44,8 @@ enum ieee80211_phytype {
 	IEEE80211_T_TURBO	= 3,	/* high rate OFDM, aka turbo mode */
 	IEEE80211_T_HT		= 4,	/* High Troughput (802.11n) */
 	IEEE80211_T_XR		= 5,	/* OFDM eXtended Range */
+	IEEE80211_T_OFDM_HALF =5,		/* 1/2 rate OFDM */
+	IEEE80211_T_OFDM_QUARTER =6,	/* 1/4 rate OFDM */
 };
 #define	IEEE80211_T_CCK	IEEE80211_T_DS	/* more common nomenclature */
 
@@ -56,8 +58,13 @@ enum ieee80211_phymode {
 	IEEE80211_MODE_FH	= 4,	/* 2GHz, GFSK */
 	IEEE80211_MODE_TURBO_A	= 5,	/* 5GHz, OFDM, 2x clock dynamic turbo */
 	IEEE80211_MODE_TURBO_G	= 6,	/* 2GHz, OFDM, 2x clock  dynamic turbo*/
+	IEEE80211_MODE_STURBO_A	= 7,	/* 5GHz, OFDM, 2x clock, static */
+	IEEE80211_MODE_11NA	= 8,	/* 5GHz, w/ HT */
+	IEEE80211_MODE_11NG	= 9,	/* 2GHz, w/ HT */
+	IEEE80211_MODE_HALF	= 10,	/* OFDM, 1/2x clock */
+	IEEE80211_MODE_QUARTER	= 11,	/* OFDM, 1/4x clock */
 };
-#define	IEEE80211_MODE_MAX	(IEEE80211_MODE_TURBO_G+1)
+#define	IEEE80211_MODE_MAX	(IEEE80211_MODE_QUARTER+1)
 
 enum ieee80211_opmode {
 	IEEE80211_M_STA		= 1,	/* infrastructure station */
