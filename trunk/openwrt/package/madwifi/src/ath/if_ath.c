@@ -64,6 +64,7 @@
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/time.h>
+#include <linux/pci.h>
 #include <asm/uaccess.h>
 
 #include "if_ethersubr.h"		/* for ETHER_IS_MULTICAST */
@@ -336,6 +337,16 @@ static int outdoor = 0;
 static int xchanmode = 0;
 static int beacon_cal = 1;
 
+
+static const struct ath_hw_detect generic_hw_info = {
+	.vendor_name = "Unknown",
+	.card_name = "Generic",
+	.vendor = PCI_ANY_ID,
+	.id = PCI_ANY_ID,
+	.subvendor = PCI_ANY_ID,
+	.subid = PCI_ANY_ID
+};
+
 static const char *hal_status_desc[] = {
 	"No error",
 	"No hardware present or device not yet supported",
@@ -535,9 +546,13 @@ ath_attach(u_int16_t devid, struct net_device *dev, HAL_BUS_TAG tag)
 	u_int8_t csz;
 
 	sc->devid = devid;
+#ifdef AR_DEBUG
 	ath_debug_global = (ath_debug & ATH_DEBUG_GLOBAL);
 	sc->sc_debug 	 = (ath_debug & ~ATH_DEBUG_GLOBAL);
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: devid 0x%x\n", __func__, devid);
+#endif
+
+	sc->sc_hwinfo = &generic_hw_info;
 
 	/* Allocate space for dynamically determined maximum VAP count */
 	sc->sc_bslot = 
@@ -1554,6 +1569,29 @@ ath_vap_create(struct ieee80211com *ic, const char *name,
 	}
 
 	return vap;
+}
+
+void
+ath_hw_detect(struct ath_softc *sc, const struct ath_hw_detect *cards, int n_cards, u32 vendor, u32 id, u32 subvendor, u32 subid)
+{
+	int i;
+
+	for (i = 0; i < n_cards; i++) {
+		const struct ath_hw_detect *c = &cards[i];
+
+		if ((c->vendor != PCI_ANY_ID) && c->vendor != vendor)
+			continue;
+		if ((c->id != PCI_ANY_ID) && c->id != id)
+			continue;
+		if ((c->subvendor != PCI_ANY_ID) && c->subvendor != subvendor)
+			continue;
+		if ((c->subid != PCI_ANY_ID) && c->subid != subid)
+			continue;
+
+		sc->sc_hwinfo = c;
+		sc->sc_poweroffset = c->poweroffset;
+		break;
+	}
 }
 
 static void
@@ -10148,9 +10186,11 @@ set_node_txpower(void *arg, struct ieee80211_node *ni)
  * twice/interrupted. Returns the value actually stored. */
 static u_int32_t
 ath_set_clamped_maxtxpower(struct ath_softc *sc, 
-		u_int32_t new_clamped_maxtxpower)
+		u_int32_t new_txpwr)
 {
-	(void)ath_hal_settxpowlimit(sc->sc_ah, new_clamped_maxtxpower);
+	new_txpwr = ((new_txpwr < sc->sc_poweroffset) ? 0 :
+		new_txpwr - sc->sc_poweroffset);
+	(void)ath_hal_settxpowlimit(sc->sc_ah, new_txpwr);
 	return ath_get_clamped_maxtxpower(sc);
 }
 
@@ -10163,6 +10203,7 @@ ath_get_clamped_maxtxpower(struct ath_softc *sc)
 {
 	u_int32_t clamped_maxtxpower;
 	(void)ath_hal_getmaxtxpow(sc->sc_ah, &clamped_maxtxpower);
+	clamped_maxtxpower += sc->sc_poweroffset;
 	return clamped_maxtxpower;
 }
 
@@ -10745,6 +10786,12 @@ ath_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
  * is to add module parameters.
  */
 
+/* sysctls for hardware info */
+enum {
+	ATH_CARD_VENDOR,
+	ATH_CARD_NAME,
+};
+
 /*
  * Dynamic (i.e. per-device) sysctls.  These are automatically
  * mirrored in /proc/sys.
@@ -10832,6 +10879,38 @@ ath_distance2timeout(struct ath_softc *sc, int distance)
 	 * XXX: Update based on emperical evidence (potentially save 15us per
 	 * timeout). */
 	return ath_slottime2timeout(sc, ath_distance2slottime(sc, distance));
+}
+
+static int
+ATH_SYSCTL_DECL(ath_sysctl_hwinfo, ctl, write, filp, buffer, lenp, ppos)
+{
+	struct ath_softc *sc = ctl->extra1;
+	//struct ath_hal *ah = sc->sc_ah;
+	int ret = 0;
+
+	if (write)
+		return -EINVAL;
+
+	ATH_LOCK(sc);
+	switch((long)ctl->extra2) {
+	case ATH_CARD_VENDOR:
+		ctl->data = (char *)sc->sc_hwinfo->vendor_name;
+		break;
+	case ATH_CARD_NAME:
+		ctl->data = (char *)sc->sc_hwinfo->card_name;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	if (ret == 0) {
+		ctl->maxlen = strlen(ctl->data);
+		ret = ATH_SYSCTL_PROC_DOSTRING(ctl, write, filp,
+				buffer, lenp, ppos);
+	}
+	ATH_UNLOCK(sc);
+
+	return ret;
 }
 
 static int
@@ -11181,6 +11260,28 @@ static const ctl_table ath_sysctl_template[] = {
 	  .mode		= 0644,
 	  .proc_handler	= ath_sysctl_halparam,
 	  .extra2	= (void *)ATH_DISTANCE,
+	},
+ 	{ ATH_INIT_CTL_NAME(CTL_AUTO)
+	  .procname	= "dev_vendor",
+	  .mode		= 0644,
+	  .proc_handler	= ath_sysctl_hwinfo,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)
+	  .strategy   = &sysctl_string,
+#endif
+	  .data		= "N/A",
+	  .maxlen   = 1,
+	  .extra2	= (void *)ATH_CARD_VENDOR,
+	},
+	{ ATH_INIT_CTL_NAME(CTL_AUTO)
+	  .procname	= "dev_name",
+	  .mode		= 0644,
+	  .proc_handler	= ath_sysctl_hwinfo,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)
+	  .strategy   = &sysctl_string,
+#endif
+	  .data		= "N/A",
+	  .maxlen   = 1,
+	  .extra2	= (void *)ATH_CARD_NAME,
 	},
 	{ ATH_INIT_CTL_NAME(CTL_AUTO)
 	  .procname	= "slottime",

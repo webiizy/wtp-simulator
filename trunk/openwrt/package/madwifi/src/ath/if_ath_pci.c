@@ -114,7 +114,7 @@ static struct pci_device_id ath_pci_id_table[] __devinitdata = {
 	{ 0x168c, 0x0023, PCI_ANY_ID, PCI_ANY_ID },
 	{ 0x168c, 0x0024, PCI_ANY_ID, PCI_ANY_ID },
 	{ 0x168c, 0x0027, PCI_ANY_ID, PCI_ANY_ID },
-#if 0 /* PCI based AR9280 doesn't work yet */
+#if 1 /* PCI based AR9280 doesn't work yet */
 	{ 0x168c, 0x0029, PCI_ANY_ID, PCI_ANY_ID }, /* AR9280 PCI */
 #endif
 	{ 0x168c, 0x002a, PCI_ANY_ID, PCI_ANY_ID }, /* AR9280 PCI Express */
@@ -123,7 +123,33 @@ static struct pci_device_id ath_pci_id_table[] __devinitdata = {
 };
 
 static u16 ath_devidmap[][2] = {
-	{ 0x9013, 0x0013 }
+	{ 0x9013, 0x0013 },
+	{ 0xff1a, 0x001a }
+};
+
+static const char ubnt[] = "Ubiquiti Networks";
+/* { vendorname, cardname, vendorid, cardid, subsys vendorid, subsys id, poweroffset } */
+static const struct ath_hw_detect cards[] = {
+	{ ubnt, "XR2",     0x168c, 0x001b, 0x0777, 0x3002, 10 },
+	{ ubnt, "XR2",     0x168c, 0x001b, 0x7777, 0x3002, 10 },
+	{ ubnt, "XR2.3",   0x168c, 0x001b, 0x0777, 0x3b02, 10 },
+	{ ubnt, "XR2.6",   0x168c, 0x001b, 0x0777, 0x3c02, 10 },
+	{ ubnt, "XR3-2.8", 0x168c, 0x001b, 0x0777, 0x3b03, 10 },
+	{ ubnt, "XR3-3.6", 0x168c, 0x001b, 0x0777, 0x3c03, 10 },
+	{ ubnt, "XR3",     0x168c, 0x001b, 0x0777, 0x3003, 10 },
+	{ ubnt, "XR4",     0x168c, 0x001b, 0x0777, 0x3004, 10 },
+	{ ubnt, "XR5",     0x168c, 0x001b, 0x0777, 0x3005, 10 },
+	{ ubnt, "XR5",     0x168c, 0x001b, 0x7777, 0x3005, 10 },
+	{ ubnt, "XR7",     0x168c, 0x001b, 0x0777, 0x3007, 10 },
+	{ ubnt, "XR9",     0x168c, 0x001b, 0x0777, 0x3009, 10 },
+	{ ubnt, "SRC",     0x168c, 0x0013, 0x168c, 0x1042, 1 },
+	{ ubnt, "SR2",     0x168c, 0x0013, 0x0777, 0x2041, 10 },
+	{ ubnt, "SR4",     0x168c, 0x0013, 0x0777, 0x2004, 6 },
+	{ ubnt, "SR4",     0x168c, 0x0013, 0x7777, 0x2004, 6 },
+	{ ubnt, "SR4C",    0x168c, 0x0013, 0x0777, 0x1004, 6 },
+	{ ubnt, "SR4C",    0x168c, 0x0013, 0x7777, 0x1004, 6 },
+	{ ubnt, "SR5",     0x168c, 0x0013, 0x168c, 0x2042, 7 },
+	{ ubnt, "SR9",     0x168c, 0x0013, 0x7777, 0x2009, 12 },
 };
 
 static int
@@ -139,8 +165,10 @@ ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	u16 vdevice;
 	int i;
 
-	if (pci_enable_device(pdev))
+	if (pci_enable_device(pdev)) {
+		printk(KERN_ERR "%s: failed to enable PCI device\n", dev_info);
 		return -EIO;
+	}
 
 	/* XXX 32-bit addressing only */
 	if (pci_set_dma_mask(pdev, 0xffffffff)) {
@@ -210,6 +238,11 @@ ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	sc->aps_sc.sc_invalid = 1;
 
+	if (dev_alloc_name(dev, dev->name) < 0) {
+		printk(KERN_ERR "%s: cannot allocate name\n", dev_info);
+		goto bad3;
+	}
+
 	dev->irq = pdev->irq;
 
 	SET_MODULE_OWNER(dev);
@@ -233,6 +266,7 @@ ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 	}
 
+#if 0
 	/*
 	 * Auto-enable soft led processing for IBM cards and for
 	 * 5211 minipci cards.  Users can also manually enable/disable
@@ -248,14 +282,21 @@ ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		sc->aps_sc.sc_softled = 1;
 		sc->aps_sc.sc_ledpin = 1;
 	}
+#endif
 
-	if (ath_attach(vdevice, dev, NULL) != 0)
+	if ((i = ath_attach(vdevice, dev, NULL)) != 0) {
+		printk(KERN_ERR "%s: ath_attach failed: %d\n", dev_info, i);
 		goto bad4;
+	}
 
 	athname = ath_hal_probe(id->vendor, vdevice);
 	printk(KERN_INFO "%s: %s: %s: mem=0x%llx, irq=%d\n",
-		dev_info, dev->name, athname ? athname : "Atheros ???",
+		dev_info, dev->name, athname ? athname : "Atheros ???", 
 		(unsigned long long)phymem, dev->irq);
+
+	ath_hw_detect(&sc->aps_sc, cards, ARRAY_SIZE(cards),
+		pdev->vendor, pdev->device,
+		pdev->subsystem_vendor, pdev->subsystem_device);
 
 	if (vdevice == AR5416_DEVID_PCIE)
 		sc->aps_sc.sc_dmasize_stomp = 1;
