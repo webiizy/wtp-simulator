@@ -47,6 +47,11 @@ typedef struct {
 	uint16_t	end;		/* ending register or zero */
 } HAL_REGRANGE;
 
+typedef struct {
+	uint32_t	addr;		/* regiser address/offset */
+	uint32_t	value;		/* value to write */
+} HAL_REGWRITE;
+
 /*
  * Transmit power scale factor.
  *
@@ -650,6 +655,7 @@ enum {
 	HAL_DIAG_11NCOMPAT	= 30,	/* 11n compatibility tweaks */
 	HAL_DIAG_ANI_PARAMS	= 31,	/* ANI noise immunity parameters */
 	HAL_DIAG_CHECK_HANGS	= 32,	/* check h/w hangs */
+	HAL_DIAG_SETREGS	= 33,	/* write registers */
 };
 
 enum {
@@ -800,6 +806,30 @@ extern	void ath_hal_ini_bank_setup(uint32_t data[], const HAL_INI_ARRAY *ia,
 		int col);
 extern	int ath_hal_ini_bank_write(struct ath_hal *ah, const HAL_INI_ARRAY *ia,
 		const uint32_t data[], int regWr);
+
+#define	CCK_SIFS_TIME		10
+#define	CCK_PREAMBLE_BITS	144
+#define	CCK_PLCP_BITS		48
+
+#define	OFDM_SIFS_TIME		16
+#define	OFDM_PREAMBLE_TIME	20
+#define	OFDM_PLCP_BITS		22
+#define	OFDM_SYMBOL_TIME	4
+
+#define	OFDM_HALF_SIFS_TIME	32
+#define	OFDM_HALF_PREAMBLE_TIME	40
+#define	OFDM_HALF_PLCP_BITS	22
+#define	OFDM_HALF_SYMBOL_TIME	8
+
+#define	OFDM_QUARTER_SIFS_TIME 		64
+#define	OFDM_QUARTER_PREAMBLE_TIME	80
+#define	OFDM_QUARTER_PLCP_BITS		22
+#define	OFDM_QUARTER_SYMBOL_TIME	16
+
+#define	TURBO_SIFS_TIME		8
+#define	TURBO_PREAMBLE_TIME	14
+#define	TURBO_PLCP_BITS		22
+#define	TURBO_SYMBOL_TIME	4
 
 #define	WLAN_CTRL_FRAME_SIZE	(2+2+6+4)	/* ACK+FCS */
 #endif /* _ATH_AH_INTERAL_H_ */

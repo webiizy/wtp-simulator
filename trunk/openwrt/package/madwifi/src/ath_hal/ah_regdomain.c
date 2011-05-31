@@ -319,6 +319,7 @@ enum {
 
 	WOR9_WORLD	= 0x69,		/* World9 (WO9 SKU) */	
 	WORA_WORLD	= 0x6A,		/* WorldA (WOA SKU) */	
+	WORB_WORLD	= 0x6B,		/* WorldB (WOB SKU) */
 
 	MKK3_MKKB	= 0x80,		/* Japan UNI-1 even + MKKB */
 	MKK3_MKKA2	= 0x81,		/* Japan UNI-1 even + MKKA2 */

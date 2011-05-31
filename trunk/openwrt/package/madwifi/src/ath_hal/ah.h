@@ -63,6 +63,8 @@ typedef enum {
 	HAL_ENOTSUPP	= 13,	/* Hardware revision not supported */
 	HAL_ESELFTEST	= 14,	/* Hardware self-test failed */
 	HAL_EINPROGRESS	= 15,	/* Operation incomplete */
+	HAL_EEBADREG	= 16,	/* EEPROM invalid regulatory contents */
+	HAL_EEBADCC	= 17,	/* EEPROM invalid country code */
 } HAL_STATUS;
 
 typedef enum {
@@ -107,6 +109,8 @@ typedef enum {
 	HAL_CAP_RXTSTAMP_PREC	= 34,	/* rx desc tstamp precision (bits) */
 	HAL_CAP_BB_HANG		= 35,	/* can baseband hang */
 	HAL_CAP_MAC_HANG	= 36,	/* can MAC hang */
+	HAL_CAP_INTRMASK	= 37,	/* bitmask of supported interrupts */
+	HAL_CAP_BSSIDMATCH	= 38,	/* hardware has disable bssid match */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -293,6 +297,7 @@ typedef enum {
 	HAL_RX_FILTER_PHYERR	= 0x00000100,	/* Allow phy errors */
 	HAL_RX_FILTER_PHYRADAR	= 0x00000200,	/* Allow phy radar errors */
 	HAL_RX_FILTER_COMPBAR	= 0x00000400,	/* Allow compressed BAR */
+	HAL_RX_FILTER_BSSID	= 0x00000800,	/* Disable BSSID match */
 } HAL_RX_FILTER;
 
 typedef enum {
@@ -319,6 +324,7 @@ typedef enum {
 	HAL_INT_RXORN	= 0x00000020,
 	HAL_INT_TX	= 0x00000040,	/* Non-common mapping */
 	HAL_INT_TXDESC	= 0x00000080,
+	HAL_INT_TIM_TIMER= 0x00000100,
 	HAL_INT_TXURN	= 0x00000800,
 	HAL_INT_MIB	= 0x00001000,
 	HAL_INT_RXPHY	= 0x00004000,
@@ -332,6 +338,7 @@ typedef enum {
 	HAL_INT_GPIO	= 0x01000000,
 	HAL_INT_CABEND	= 0x02000000,	/* Non-common mapping */
 	HAL_INT_TSFOOR	= 0x04000000,	/* Non-common mapping */
+	HAL_INT_TBTT	= 0x08000000,	/* Non-common mapping */
 	HAL_INT_CST	= 0x10000000,	/* Non-common mapping */
 	HAL_INT_GTT	= 0x20000000,	/* Non-common mapping */
 	HAL_INT_FATAL	= 0x40000000,	/* Non-common mapping */
@@ -339,22 +346,40 @@ typedef enum {
 	HAL_INT_BMISC	= HAL_INT_TIM
 			| HAL_INT_DTIM
 			| HAL_INT_DTIMSYNC
-			| HAL_INT_CABEND,
+			| HAL_INT_CABEND
+			| HAL_INT_TBTT,
 
 	/* Interrupt bits that map directly to ISR/IMR bits */
 	HAL_INT_COMMON  = HAL_INT_RXNOFRM
 			| HAL_INT_RXDESC
 			| HAL_INT_RXEOL
 			| HAL_INT_RXORN
-			| HAL_INT_TXURN
 			| HAL_INT_TXDESC
+			| HAL_INT_TXURN
 			| HAL_INT_MIB
 			| HAL_INT_RXPHY
 			| HAL_INT_RXKCM
 			| HAL_INT_SWBA
 			| HAL_INT_BMISS
+			| HAL_INT_BNR
 			| HAL_INT_GPIO,
 } HAL_INT;
+
+typedef enum {
+	HAL_GPIO_MUX_OUTPUT		= 0,
+	HAL_GPIO_MUX_PCIE_ATTENTION_LED	= 1,
+	HAL_GPIO_MUX_PCIE_POWER_LED	= 2,
+	HAL_GPIO_MUX_TX_FRAME		= 3,
+	HAL_GPIO_MUX_RX_CLEAR_EXTERNAL	= 4,
+	HAL_GPIO_MUX_MAC_NETWORK_LED	= 5,
+	HAL_GPIO_MUX_MAC_POWER_LED	= 6
+} HAL_GPIO_MUX_TYPE;
+
+typedef enum {
+	HAL_GPIO_INTR_LOW		= 0,
+	HAL_GPIO_INTR_HIGH		= 1,
+	HAL_GPIO_INTR_DISABLE		= 2
+} HAL_GPIO_INTR_TYPE;
 
 typedef enum {
 	HAL_RFGAIN_INACTIVE		= 0,
