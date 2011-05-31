@@ -211,18 +211,24 @@ int ifmedia_ioctl(struct net_device *, struct ifreq *, struct ifmedia *, u_long)
 #define IFM_IEEE80211_OFDM54    23      /* OFDM 54Mbps */
 #define IFM_IEEE80211_OFDM72    24      /* OFDM 72Mbps */
 
+/* NB: not enough bits to express MCS fully */
+#define IFM_IEEE80211_MCS       24      /* HT MCS rate */
+
 #define	IFM_IEEE80211_ADHOC	0x00000100	/* Operate in Adhoc mode */
 #define	IFM_IEEE80211_HOSTAP	0x00000200	/* Operate in Host AP mode */
 #define	IFM_IEEE80211_IBSS	0x00000400	/* Operate in IBSS mode */
 #define	IFM_IEEE80211_WDS	0x00000800	/* Operate in WDS mode */
 #define	IFM_IEEE80211_TURBO	0x00001000	/* Operate in turbo mode */
 #define	IFM_IEEE80211_MONITOR	0x00002000	/* Operate in monitor mode */
+#define IFM_IEEE80211_MBSS      0x00004000      /* Operate in MBSS mode */
 
 /* operating mode for multi-mode devices */
 #define	IFM_IEEE80211_11A	0x00010000	/* 5Ghz, OFDM mode */
 #define	IFM_IEEE80211_11B	0x00020000	/* Direct Sequence mode */
 #define	IFM_IEEE80211_11G	0x00030000	/* 2Ghz, CCK mode */
 #define	IFM_IEEE80211_FH	0x00040000	/* 2Ghz, GFSK mode */
+#define IFM_IEEE80211_11NA      0x00050000      /* 5Ghz, HT mode */
+#define IFM_IEEE80211_11NG      0x00060000      /* 2Ghz, HT mode */
 
 /*
  * Shared media sub-types

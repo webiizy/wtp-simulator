@@ -60,7 +60,11 @@ const char *ieee80211_phymode_name[] = {
 	"FH",		/* IEEE80211_MODE_FH */
 	"turboA",	/* IEEE80211_MODE_TURBO_A */
 	"turboG",	/* IEEE80211_MODE_TURBO_G */
-	"staticTurboA",	/* IEEE80211_MODE_TURBO_G */
+	"staticTurboA",	/* IEEE80211_MODE_STURBO_A */
+	"11na",		/* IEEE80211_MODE_11NA */
+	"11ng",		/* IEEE80211_MODE_11NG */
+	"half",		/* IEEE80211_MODE_HALF */
+	"quarter",	/* IEEE80211_MODE_QUARTER */
 };
 EXPORT_SYMBOL(ieee80211_phymode_name);
 
@@ -1612,6 +1616,22 @@ ieee80211_chan2mode(const struct ieee80211_channel *chan)
 }
 EXPORT_SYMBOL(ieee80211_chan2mode);
 
+struct ratemedia {
+	u_int	match;	/* rate + mode */
+	u_int	media;	/* if_media rate */
+};
+
+static int
+findmedia(const struct ratemedia rates[], int n, u_int match)
+{
+	int i;
+
+	for (i = 0; i < n; i++)
+		if (rates[i].match == match)
+			return rates[i].media;
+	return IFM_AUTO;
+}
+
 /*
  * Convert IEEE80211 rate value to ifmedia subtype.
  * ieee80211 rate is in unit of 0.5Mbps.
@@ -1619,10 +1639,8 @@ EXPORT_SYMBOL(ieee80211_chan2mode);
 int
 ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode mode)
 {
-	static const struct {
-		u_int	m;	/* rate & mode */
-		u_int	r;	/* if_media rate */
-	} rates[] = {
+#define	N(a)	(sizeof(a) / sizeof(a[0]))
+	static const struct ratemedia rates[] = {
 		{   2 | IFM_IEEE80211_FH, IFM_IEEE80211_FH1 },
 		{   4 | IFM_IEEE80211_FH, IFM_IEEE80211_FH2 },
 		{   2 | IFM_IEEE80211_11B, IFM_IEEE80211_DS1 },
@@ -1658,12 +1676,53 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 		{ 108 | IFM_IEEE80211_11G, IFM_IEEE80211_OFDM54 },
 		/* NB: OFDM72 doesn't really exist so we don't handle it */
 	};
-
+	static const struct ratemedia htrates[] = {
+		{   0, IFM_IEEE80211_MCS },
+		{   1, IFM_IEEE80211_MCS },
+		{   2, IFM_IEEE80211_MCS },
+		{   3, IFM_IEEE80211_MCS },
+		{   4, IFM_IEEE80211_MCS },
+		{   5, IFM_IEEE80211_MCS },
+		{   6, IFM_IEEE80211_MCS },
+		{   7, IFM_IEEE80211_MCS },
+		{   8, IFM_IEEE80211_MCS },
+		{   9, IFM_IEEE80211_MCS },
+		{  10, IFM_IEEE80211_MCS },
+		{  11, IFM_IEEE80211_MCS },
+		{  12, IFM_IEEE80211_MCS },
+		{  13, IFM_IEEE80211_MCS },
+		{  14, IFM_IEEE80211_MCS },
+		{  15, IFM_IEEE80211_MCS },
+	};
+	int m;
 	u_int mask, i;
+	/*
+	 * Check 11n rates first for match as an MCS.
+	 */
+	if (mode == IEEE80211_MODE_11NA) {
+		if (rate & IEEE80211_RATE_MCS) {
+			rate &= ~IEEE80211_RATE_MCS;
+			m = findmedia(htrates, N(htrates), rate);
+			if (m != IFM_AUTO)
+				return m | IFM_IEEE80211_11NA;
+		}
+	} else if (mode == IEEE80211_MODE_11NG) {
+		/* NB: 12 is ambiguous, it will be treated as an MCS */
+		if (rate & IEEE80211_RATE_MCS) {
+			rate &= ~IEEE80211_RATE_MCS;
+			m = findmedia(htrates, N(htrates), rate);
+			if (m != IFM_AUTO)
+				return m | IFM_IEEE80211_11NG;
+		}
+	}
 	mask = rate & IEEE80211_RATE_VAL;
 	switch (mode) {
 	case IEEE80211_MODE_11A:
+	case IEEE80211_MODE_HALF:		/* XXX good 'nuf */
+	case IEEE80211_MODE_QUARTER:
+	case IEEE80211_MODE_11NA:
 	case IEEE80211_MODE_TURBO_A:
+	case IEEE80211_MODE_STURBO_A:
 		mask |= IFM_IEEE80211_11A;
 		break;
 	case IEEE80211_MODE_11B:
@@ -1681,13 +1740,14 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 		/* NB: Hack, 11g matches both 11b & 11a rates */
 		/* *Fall through* */
 	case IEEE80211_MODE_11G:
+	case IEEE80211_MODE_11NG:
 	case IEEE80211_MODE_TURBO_G:
 		mask |= IFM_IEEE80211_11G;
 		break;
 	}
 	for (i = 0; i < ARRAY_SIZE(rates); i++)
-		if (rates[i].m == mask)
-			return rates[i].r;
+		if (rates[i].match == mask)
+			return rates[i].media;
 	return IFM_AUTO;
 }
 EXPORT_SYMBOL(ieee80211_rate2media);

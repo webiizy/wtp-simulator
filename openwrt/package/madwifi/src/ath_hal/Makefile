@@ -51,6 +51,7 @@ ath_hal-objs	:= \
 	ah_eeprom_v1.o \
 	ah_eeprom_v14.o \
 	ah_eeprom_v3.o \
+	ah_eeprom_v4k.o \
 	ah_os.o \
 	ah_regdomain.o \
 	ar5210/ar5210_attach.o \
@@ -114,7 +115,10 @@ ath_hal-objs	:= \
 	ar5416/ar5416_xmit.o \
 	ar5416/ar9160_attach.o \
 	ar5416/ar9280.o \
-	ar5416/ar9280_attach.o
+	ar5416/ar9280_attach.o \
+#	ar5416/ar9285.o #\
+#	ar5416/ar9285_attach.o \
+#	ar5416/ar9285_reset.o
 
 ifeq ($(strip $(BUS)),AHB)
 ifeq ($(CONFIG_64BIT)),)
