@@ -21,6 +21,7 @@
 #include <linux/cache.h>
 #include <linux/platform_device.h>
 #include <linux/ethtool.h>
+#include <linux/pci.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -158,6 +159,40 @@ ahb_disable_wmac(u_int16_t devid, u_int16_t wlanNum)
 }
 
 
+static const char ubnt[] = "Ubiquiti Networks";
+/* { vendorname, cardname, vendorid, cardid, subsys vendorid, subsys id, poweroffset } */
+static const struct ath_hw_detect cards[] = {
+	{ ubnt, "PowerStation2 (18V)", PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0xb102 },
+	{ ubnt, "PowerStation2 (16D)", PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0xb202 },
+	{ ubnt, "PowerStation2 (EXT)", PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0xb302 },
+	{ ubnt, "PowerStation5 (22V)", PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0xb105 },
+	{ ubnt, "PowerStation5 (EXT)", PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0xb305 },
+	{ ubnt, "WispStation5",        PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0xa105 },
+	{ ubnt, "LiteStation2",        PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0xa002 },
+	{ ubnt, "LiteStation5",        PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0xa005 },
+	{ ubnt, "NanoStation2",        PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0xc002 },
+	{ ubnt, "NanoStation5",        PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0xc005 },
+	{ ubnt, "NanoStation Loco2",   PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0xc102 },
+	{ ubnt, "NanoStation Loco5",   PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0xc105 },
+	{ ubnt, "Bullet2",             PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0xc202 },
+	{ ubnt, "Bullet5",             PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0xc205 },
+};
+
+
+static void
+ahb_hw_detect(struct ath_ahb_softc *sc, const char *radio)
+{
+	u16 *radio_data = (u16 *) radio;
+	if (radio_data) {
+		u16 vendor, id, subvendor, subid;
+		vendor = radio_data[1];
+		id = radio_data[0];
+		subvendor = radio_data[8];
+		subid = radio_data[7];
+		ath_hw_detect(&sc->aps_sc, cards, ARRAY_SIZE(cards), vendor, id, subvendor, subid);
+	}
+}
+
 static int
 exit_ath_wmac(u_int16_t wlanNum, struct ar531x_config *config)
 {
@@ -187,6 +222,7 @@ init_ath_wmac(u_int16_t devid, u_int16_t wlanNum, struct ar531x_config *config)
 	const char *athname;
 	struct net_device *dev;
 	struct ath_ahb_softc *sc;
+	u16 *radio_data;
 
 	if (((wlanNum != 0) && (wlanNum != 1)) ||
 		(sclist[wlanNum] != NULL))
@@ -209,6 +245,11 @@ init_ath_wmac(u_int16_t devid, u_int16_t wlanNum, struct ar531x_config *config)
 	sc->aps_sc.sc_invalid = 1;
 	SET_MODULE_OWNER(dev);
 	sclist[wlanNum] = sc;
+
+	if (dev_alloc_name(dev, dev->name) < 0) {
+		printk(KERN_ERR "%s: cannot allocate name\n", dev_info);
+		goto bad3;
+	}
 
 	switch (wlanNum) {
 	case AR531X_WLAN0_NUM:
@@ -245,7 +286,11 @@ init_ath_wmac(u_int16_t devid, u_int16_t wlanNum, struct ar531x_config *config)
 	num_activesc++;
 	/* Ready to process interrupts */
 
+	sc->aps_sc.sc_softled = 1; /* SoftLED over GPIO */
+	sc->aps_sc.sc_ledpin = config->board->sysLedGpio;
 	sc->aps_sc.sc_invalid = 0;
+	ahb_hw_detect(sc, config->radio);
+
 	return 0;
 
  bad4:

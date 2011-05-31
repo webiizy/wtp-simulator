@@ -174,18 +174,24 @@ static inline struct net_device *_alloc_netdev(int sizeof_priv, const char *mask
 	  void __user *buffer, size_t *lenp)
 #define	ATH_SYSCTL_PROC_DOINTVEC(ctl, write, filp, buffer, lenp, ppos) \
 	proc_dointvec(ctl, write, filp, buffer, lenp)
+#define	ATH_SYSCTL_PROC_DOSTRING(ctl, write, filp, buffer, lenp, ppos) \
+	proc_dostring(ctl, write, filp, buffer, lenp)
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32)
 #define	ATH_SYSCTL_DECL(f, ctl, write, filp, buffer, lenp, ppos) \
 	f(ctl_table *ctl, int write, struct file *filp, \
 	  void __user *buffer, size_t *lenp, loff_t *ppos)
 #define	ATH_SYSCTL_PROC_DOINTVEC(ctl, write, filp, buffer, lenp, ppos) \
 	proc_dointvec(ctl, write, filp, buffer, lenp, ppos)
+#define ATH_SYSCTL_PROC_DOSTRING(ctl, write, filp, buffer, lenp, ppos) \
+        proc_dostring(ctl, write, filp, buffer, lenp, ppos)
 #else /* Linux 2.6.32+ */
 #define	ATH_SYSCTL_DECL(f, ctl, write, filp, buffer, lenp, ppos) \
 	f(ctl_table *ctl, int write, \
 	  void __user *buffer, size_t *lenp, loff_t *ppos)
 #define	ATH_SYSCTL_PROC_DOINTVEC(ctl, write, filp, buffer, lenp, ppos) \
 	proc_dointvec(ctl, write, buffer, lenp, ppos)
+#define	ATH_SYSCTL_PROC_DOSTRING(ctl, write, filp, buffer, lenp, ppos) \
+	proc_dostring(ctl, write, buffer, lenp, ppos)
 #endif
 
 #define	ATH_TIMEOUT	1000
@@ -496,6 +502,7 @@ struct ath_hal;
 struct ath_desc;
 struct ath_ratectrl;
 struct ath_tx99;
+struct ath_hw_detect;
 struct proc_dir_entry;
 
 /*
@@ -658,6 +665,7 @@ struct ath_softc {
 	spinlock_t sc_hal_lock;                 /* hardware access lock */
 	struct ath_ratectrl *sc_rc;		/* tx rate control support */
 	struct ath_tx99 *sc_tx99; 		/* tx99 support */
+	const struct ath_hw_detect *sc_hwinfo;
 	void (*sc_setdefantenna)(struct ath_softc *, u_int);
 
 	unsigned int 	sc_invalid:1;		/* being detached */
@@ -716,6 +724,7 @@ struct ath_softc {
 	const HAL_RATE_TABLE *sc_quarter_rates;	/* quarter rate table */
 	HAL_OPMODE sc_opmode;			/* current hal operating mode */
 	enum ieee80211_phymode sc_curmode;	/* current phy mode */
+	u_int sc_poweroffset;			/* hardware power offset */
 	u_int16_t sc_curtxpow;			/* current tx power limit */
 	u_int16_t sc_curaid;			/* current association id */
 	HAL_CHANNEL sc_curchan;			/* current h/w channel */
@@ -1026,5 +1035,18 @@ void ath_sysctl_unregister(void);
 	  "MadWifi" : \
 	  DEV_NAME(_v->iv_ic->ic_dev))
 
+
+
+struct ath_hw_detect {
+	const char *vendor_name;
+	const char *card_name;
+	u32 vendor;
+	u32 id;
+	u32 subvendor;
+	u32 subid;
+	u32 poweroffset;
+};
+
+extern void ath_hw_detect(struct ath_softc *sc, const struct ath_hw_detect *cards, int n_cards, u32 vendor, u32 id, u32 subvendor, u32 subid);
 
 #endif /* _DEV_ATH_ATHVAR_H */
