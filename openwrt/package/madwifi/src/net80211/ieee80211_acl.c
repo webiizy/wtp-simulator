@@ -113,6 +113,7 @@ acl_attach(struct ieee80211vap *vap)
 	TAILQ_INIT(&as->as_list);
 	as->as_policy = ACL_POLICY_OPEN;
 	vap->iv_as = as;
+	nrefs++;			/* NB: we assume caller locking */
 	return 1;
 }
 
@@ -122,6 +123,7 @@ acl_detach(struct ieee80211vap *vap)
 	struct aclstate *as = vap->iv_as;
 
 	ACL_LOCK(as);
+	nrefs--;			/* NB: we assume caller locking */
 	acl_free_all_locked(as);
 	ACL_UNLOCK(as);
 	vap->iv_as = NULL;
