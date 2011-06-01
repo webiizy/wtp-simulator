@@ -6821,10 +6821,12 @@ ath_rx_tasklet(TQUEUE_ARG data)
 				mic_fail = 1;
 				goto rx_accept;
 			}
-
-			/* Reject error frames if we have no vaps that
-			 * are operating in monitor mode. */
-			if (sc->sc_nmonvaps == 0)
+			/*
+			 * Reject error frames if we have no vaps that
+			 * are operating in monitor mode.
+			 * Reject empty frames as well
+			 */
+			if ((sc->sc_nmonvaps == 0) || (rs->rs_datalen == 0))
 				goto rx_next;
 		}
 rx_accept:
