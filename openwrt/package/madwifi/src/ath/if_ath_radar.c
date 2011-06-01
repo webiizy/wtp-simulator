@@ -283,10 +283,11 @@ int ath_radar_update(struct ath_softc *sc)
 		unsigned int new_rxfilt = old_rxfilt;
 
 		ath_hal_intrset(ah, old_ier & ~HAL_INT_GLOBAL);
-		if (required) {
+		if ((required) && (ic->ic_flags & IEEE80211_F_DOTH)) {
 			new_radar |= AR5K_PHY_RADAR_ENABLE;
 			new_filter |= AR5K_AR5212_PHY_ERR_FIL_RADAR;
-			new_rxfilt |= HAL_RX_FILTER_PHYRADAR;
+			new_rxfilt |= (HAL_RX_FILTER_PHYERR | 
+				       HAL_RX_FILTER_PHYRADAR);
 			new_mask |= HAL_INT_RXPHY;
 			new_ier |= HAL_INT_RXPHY;
 		} else {
