@@ -2008,11 +2008,13 @@ ieee80211_node_leave(struct ieee80211_node *ni)
 	/* From this point onwards we can no longer find the node,
 	 * so no more references are generated
 	 */
-	ieee80211_remove_wds_addr(nt, ni->ni_macaddr);
-	ieee80211_del_wds_node(nt, ni);
-	IEEE80211_NODE_TABLE_LOCK_IRQ(nt);
-	node_table_leave_locked(nt, ni);
-	IEEE80211_NODE_TABLE_UNLOCK_IRQ(nt);
+	if (nt) {
+		ieee80211_remove_wds_addr(nt, ni->ni_macaddr);
+		ieee80211_del_wds_node(nt, ni);
+		IEEE80211_NODE_TABLE_LOCK_IRQ(nt);
+		node_table_leave_locked(nt, ni);
+		IEEE80211_NODE_TABLE_UNLOCK_IRQ(nt);
+	}
 
 	/*
 	 * If node wasn't previously associated all
