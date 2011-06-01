@@ -3688,6 +3688,7 @@ ieee80211_ioctl_setmlme(struct net_device *dev, struct iw_request_info *info,
 		if (vap->iv_opmode == IEEE80211_M_STA) {
 			struct scanlookup lookup;
 
+			preempt_scan(dev, 100, 100);
 			lookup.se = NULL;
 			lookup.mac = mlme->im_macaddr;
 			/* XXX use revised api w/ explicit ssid */
