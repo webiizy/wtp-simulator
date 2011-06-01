@@ -905,7 +905,7 @@ ath_attach(u_int16_t devid, struct net_device *dev, HAL_BUS_TAG tag)
 #else
 	dev->netdev_ops = &ath_netdev_ops;
 #endif
-	dev->watchdog_timeo = HZ;
+	dev->watchdog_timeo = 5 * HZ;
 	dev->tx_queue_len = ATH_TXBUF - ATH_TXBUF_MGT_RESERVED;
 #ifdef USE_HEADERLEN_RESV
 	dev->hard_header_len += sizeof(struct ieee80211_qosframe) +

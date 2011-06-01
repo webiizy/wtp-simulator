@@ -96,7 +96,7 @@ static void ieee80211_tx_timeout(unsigned long);
 #ifdef ATH_SUPERG_XR
 static void ieee80211_start_xrvap(unsigned long);
 #endif
-void ieee80211_auth_setup(void);
+static void ieee80211_auth_setup(void);
 
 void
 ieee80211_proto_attach(struct ieee80211com *ic)
@@ -1324,6 +1324,11 @@ __ieee80211_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 	switch (nstate) {
 	case IEEE80211_S_INIT:
 		switch (ostate) {
+		case IEEE80211_S_CAC:
+		case IEEE80211_S_CSA:
+		case IEEE80211_S_SLEEP:
+			/* do nothing, TBD. channel function, power save. */
+			break;
 		case IEEE80211_S_INIT:
 			break;
 		case IEEE80211_S_RUN:
@@ -1437,6 +1442,11 @@ __ieee80211_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 				goto createibss;
 			}
 			break;
+		case IEEE80211_S_CAC:
+		case IEEE80211_S_CSA:
+		case IEEE80211_S_SLEEP:
+			/* do nothing, TBD. channel function, power save. */
+			break;
 		}
 		break;
 	case IEEE80211_S_AUTH:
@@ -1483,6 +1493,11 @@ __ieee80211_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 				break;
 			}
 			break;
+		case IEEE80211_S_CAC:
+		case IEEE80211_S_CSA:
+		case IEEE80211_S_SLEEP:
+			/* do nothing, TBD. channel function, power save. */
+			break;
 		}
 		break;
 	case IEEE80211_S_ASSOC:
@@ -1508,6 +1523,11 @@ __ieee80211_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 					IEEE80211_FC0_SUBTYPE_REASSOC_REQ :
 					IEEE80211_FC0_SUBTYPE_ASSOC_REQ, 0);
 			}
+			break;
+		case IEEE80211_S_CAC:
+		case IEEE80211_S_CSA:
+		case IEEE80211_S_SLEEP:
+			/* do nothing, TBD. channel function, power save. */
 			break;
 		}
 		break;
@@ -1605,6 +1625,11 @@ __ieee80211_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 					(arg == IEEE80211_FC0_SUBTYPE_REASSOC_RESP));
 			}
 			break;
+		case IEEE80211_S_CAC:
+		case IEEE80211_S_CSA:
+		case IEEE80211_S_SLEEP:
+			/* do nothing, TBD. channel function, power save. */
+			break;
 		}
 
 		/* WDS/Repeater: Start software beacon timer for STA */
@@ -1665,6 +1690,11 @@ __ieee80211_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 		if (vap->iv_flags & IEEE80211_F_XR)
 			vap->iv_xrvap->iv_flags |= IEEE80211_F_XRUPDATE;
 #endif
+		break;
+	case IEEE80211_S_CAC:
+	case IEEE80211_S_CSA:
+	case IEEE80211_S_SLEEP:
+		/* do nothing, TBD. channel function, power save. */
 		break;
 	}
 	return 0;
@@ -1882,6 +1912,12 @@ ieee80211_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int ar
 			/* Transition S_INIT -> S_SCAN */
 			__ieee80211_newstate(vap, nstate, arg);
 			break;
+		case IEEE80211_S_CAC:
+		case IEEE80211_S_CSA:
+		case IEEE80211_S_SLEEP:
+			/* do nothing, TBD. channel function, power save. */
+			break;
+
 		}
 		break;
 

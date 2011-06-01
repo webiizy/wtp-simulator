@@ -234,6 +234,10 @@ ieee80211_input(struct ieee80211vap *vap, struct ieee80211_node *ni_or_null,
 	 * XXX: may want to include the CRC. */
 	if (vap->iv_opmode == IEEE80211_M_MONITOR)
 		goto out;
+
+	if (!skb->data)
+		goto out;
+
 	if (skb->len < sizeof(struct ieee80211_frame_min)) {
 		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
 			ni->ni_macaddr, NULL,
