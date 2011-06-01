@@ -8874,6 +8874,10 @@ ath_startrecv(struct ath_softc *sc)
 
 	sc->sc_rxbufcur = NULL;
 
+	/* configure bssid mask */
+	if (sc->sc_hasbmask)
+		ath_hal_setbssidmask(ah, sc->sc_bssidmask);
+
 	bf = STAILQ_FIRST(&sc->sc_rxbuf);
 	ath_hal_putrxbuf(ah, bf->bf_daddr);
 	ath_hal_rxena(ah);		/* enable recv descriptors */
