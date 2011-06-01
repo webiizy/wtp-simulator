@@ -3411,6 +3411,8 @@ ieee80211_recv_mgmt(struct ieee80211vap *vap,
 			vap->iv_stats.is_rx_mgtdiscard++;
 			return 0;
 		}
+		if (vap->iv_no_probereq)
+			return 0;
 		if (IEEE80211_IS_MULTICAST(wh->i_addr2)) {
 			/* frame must be directed */
 			vap->iv_stats.is_rx_mgtdiscard++;	/* XXX: stat */

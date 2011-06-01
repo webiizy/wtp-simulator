@@ -2855,6 +2855,9 @@ ieee80211_ioctl_setparam(struct net_device *dev, struct iw_request_info *info,
 		else
 			ic->ic_flags_ext &= ~IEEE80211_FEXT_MARKDFS;
 		break;
+	case IEEE80211_PARAM_PROBEREQ:
+		vap->iv_no_probereq = !value;
+		break;
 	default:
 		retv = EOPNOTSUPP;
 		break;
@@ -3187,6 +3190,9 @@ ieee80211_ioctl_getparam(struct net_device *dev, struct iw_request_info *info,
 			param[0] = 1;
 		else
 			param[0] = 0;
+	case IEEE80211_PARAM_PROBEREQ:
+		param[0] = !vap->iv_no_probereq;
+		break;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -5655,6 +5661,10 @@ static const struct iw_priv_args ieee80211_priv_args[] = {
 	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "debug_newtxbufs" },
 	{ IEEE80211_PARAM_SCANBUFS,
 	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "debug_scanbufs" },
+	{ IEEE80211_PARAM_PROBEREQ,
+	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "probereq"},
+	{ IEEE80211_PARAM_PROBEREQ,
+	 0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "get_probereq"},
 	{ IEEE80211_PARAM_LEAKTXBUFS,
 	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "debug_leaktxbufs" },
 };
