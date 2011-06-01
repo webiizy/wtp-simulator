@@ -3253,6 +3253,11 @@ ath_tx_startraw(struct net_device *dev, struct ath_buf *bf, struct sk_buff *skb)
 
 	wh = (struct ieee80211_frame *)skb->data;
 	try0 = ph->try[0];
+	if (!try0)
+		try0 = 1;
+	else if (try0 > 11)
+		try0 = 11;
+
 	rt = sc->sc_currates;
 	txrate = dot11_to_ratecode(sc, rt, ph->rate[0]);
 	power = ph->power > 60 ? 60 : ph->power;
@@ -3276,7 +3281,8 @@ ath_tx_startraw(struct net_device *dev, struct ath_buf *bf, struct sk_buff *skb)
 	rt = sc->sc_currates;
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
 
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+	if (((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_DATA) ||
+		IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		flags |= HAL_TXDESC_NOACK;	/* no ack on broad/multicast */
 		sc->sc_stats.ast_tx_noack++;
 		try0 = 1;
