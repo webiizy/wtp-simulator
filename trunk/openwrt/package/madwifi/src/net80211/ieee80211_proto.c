@@ -61,7 +61,7 @@ const char *ieee80211_mgt_subtype_name[] = {
 	"assoc_req",	"assoc_resp",	"reassoc_req",	"reassoc_resp",
 	"probe_req",	"probe_resp",	"reserved#6",	"reserved#7",
 	"beacon",	"atim",		"disassoc",	"auth",
-	"deauth",	"reserved#13",	"reserved#14",	"reserved#15"
+	"deauth",	"action",	"reserved#14",	"reserved#15"
 };
 EXPORT_SYMBOL(ieee80211_mgt_subtype_name);
 const char *ieee80211_ctl_subtype_name[] = {
@@ -76,7 +76,10 @@ const char *ieee80211_state_name[IEEE80211_S_MAX] = {
 	"SCAN",		/* IEEE80211_S_SCAN */
 	"AUTH",		/* IEEE80211_S_AUTH */
 	"ASSOC",	/* IEEE80211_S_ASSOC */
-	"RUN"		/* IEEE80211_S_RUN */
+	"CAC",		/* IEEE80211_S_CAC */
+	"RUN",		/* IEEE80211_S_RUN */
+	"CSA",		/* IEEE80211_S_CSA */
+	"SLEEP",	/* IEEE80211_S_SLEEP */
 };
 EXPORT_SYMBOL(ieee80211_state_name);
 const char *ieee80211_wme_acnames[] = {
@@ -182,7 +185,7 @@ static const struct ieee80211_authenticator auth_internal = {
 /*
  * Setup internal authenticators once; they are never unregistered.
  */
-void
+static void
 ieee80211_auth_setup(void)
 {
 	ieee80211_authenticator_register(IEEE80211_AUTH_OPEN, &auth_internal);
@@ -288,8 +291,8 @@ EXPORT_SYMBOL(ieee80211_aclator_get);
 void
 ieee80211_print_essid(const u_int8_t *essid, int len)
 {
+	const uint8_t *p;
 	int i;
-	const u_int8_t *p;
 
 	if (len > IEEE80211_NWID_LEN)
 		len = IEEE80211_NWID_LEN;

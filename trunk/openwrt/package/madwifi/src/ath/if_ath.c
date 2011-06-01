@@ -542,7 +542,7 @@ ath_attach(u_int16_t devid, struct net_device *dev, HAL_BUS_TAG tag)
 	HAL_STATUS status;
 	int error = 0;
 	unsigned int i;
-	int autocreatemode = IEEE80211_M_STA;
+	int autocreatemode = -1;
 	u_int8_t csz;
 
 	sc->devid = devid;
@@ -9026,8 +9026,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		 * needed to do the reset with chanchange = AH_FALSE in order
 		 * to receive traffic when peforming high velocity channel
 		 * changes. */
-		if (!ath_hw_reset(sc, sc->sc_opmode, &hchan, AH_TRUE, &status)   ||
-		    !ath_hw_reset(sc, sc->sc_opmode, &hchan, AH_FALSE, &status)) {
+		if (!ath_hw_reset(sc, sc->sc_opmode, &hchan, AH_TRUE, &status)) {
 			EPRINTF(sc, "Unable to reset channel %u (%u MHz) "
 				"flags 0x%x '%s' (HAL status %u)\n",
 				ieee80211_chan2ieee(ic, chan), chan->ic_freq,
