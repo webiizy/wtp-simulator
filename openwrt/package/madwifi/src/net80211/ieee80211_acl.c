@@ -62,6 +62,12 @@ enum {
 	ACL_POLICY_OPEN		= 0,	/* open, don't check ACLs */
 	ACL_POLICY_ALLOW	= 1,	/* allow traffic from MAC */
 	ACL_POLICY_DENY		= 2,	/* deny traffic from MAC */
+	/*
+	 * NB: ACL_POLICY_RADIUS must be the same value as
+	 *     IEEE80211_MACCMD_POLICY_RADIUS because of the way
+	 *     acl_getpolicy() works.
+	 */
+	ACL_POLICY_RADIUS	= 7,	/* defer to RADIUS ACL server */
 };
 
 #define	ACL_HASHSIZE	32
@@ -86,6 +92,9 @@ struct aclstate {
 MALLOC_DEFINE(M_80211_ACL, "acl", "802.11 station acl");
 
 static void acl_free_all_locked(struct aclstate *);
+
+/* number of references from net80211 layer */
+static	int nrefs = 0;
 
 static int
 acl_attach(struct ieee80211vap *vap)
@@ -152,6 +161,7 @@ acl_check(struct ieee80211vap *vap, const u_int8_t mac[IEEE80211_ADDR_LEN])
 
 	switch (as->as_policy) {
 	case ACL_POLICY_OPEN:
+	case ACL_POLICY_RADIUS:
 		return 1;
 	case ACL_POLICY_ALLOW:
 		return _find_acl(as, mac) != NULL;
