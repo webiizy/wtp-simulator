@@ -12737,7 +12737,7 @@ cleanup_ath_buf(struct ath_softc *sc, struct ath_buf *bf, int direction)
 				bus_unmap_single(
 					sc->sc_bdev,
 					bf->bf_skbaddrff[i], 
-					(direction == BUS_DMA_TODEVICE ? 
+					(direction == BUS_DMA_FROMDEVICE ? 
 					 sc->sc_rxbufsize : ffskb->len), 
 					direction);
 				bf->bf_skbaddrff[i] = 0;
