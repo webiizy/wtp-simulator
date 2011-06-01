@@ -9967,7 +9967,9 @@ ath_getchannels(struct net_device *dev, u_int cc,
 	}
 	
 	/* Convert HAL channels to ieee80211 ones. */
+#ifdef AR_DEBUG
 	DPRINTF(sc, ATH_DEBUG_RATE, "HAL returned %d channels.\n", nchan);
+#endif
 	for (i = 0; i < nchan; i++) {
 		HAL_CHANNEL *c = &chans[i];
 		struct ieee80211_channel *ichan = &ic->ic_channels[i];
@@ -10027,6 +10029,7 @@ ath_getchannels(struct net_device *dev, u_int cc,
 		ic->ic_chan_non_occupy[i].tv_sec  = 0;
 		ic->ic_chan_non_occupy[i].tv_usec = 0;
 
+#ifdef AR_DEBUG
 		DPRINTF(sc, ATH_DEBUG_RATE,
 				"Channel %3d (%4d MHz) Max Tx Power %d dBm%s "
 				"[%d hw %d reg] Flags%s%s%s%s%s%s%s%s%s%s%s%s"
@@ -10113,6 +10116,7 @@ ath_getchannels(struct net_device *dev, u_int cc,
 				(c->privFlags & 0x0080 ? 
 				 " PF & (1 << 7)" : "")
 				);
+#endif
 	}
 	ic->ic_nchans = nchan;
 	kfree(chans);
