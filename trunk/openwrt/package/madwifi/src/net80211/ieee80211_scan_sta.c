@@ -201,8 +201,10 @@ sta_flush_table(struct sta_table *st)
 }
 
 static void
-saveie(u_int8_t **iep, const u_int8_t *ie)
+saveie(u_int8_t **iep, const u_int8_t *ie, int preserve)
 {
+	if (preserve && *iep)
+		return;
 	if (ie == NULL)
 		*iep = NULL;
 	else
@@ -302,10 +304,10 @@ found:
 			(const struct ieee80211_tim_ie *)sp->tim;
 		ise->se_dtimperiod = tim->tim_period;
 	}
-	saveie(&ise->se_wme_ie, sp->wme);
-	saveie(&ise->se_wpa_ie, sp->wpa);
-	saveie(&ise->se_rsn_ie, sp->rsn);
-	saveie(&ise->se_ath_ie, sp->ath);
+	saveie(&ise->se_wme_ie, sp->wme, 0);
+	saveie(&ise->se_wpa_ie, sp->wpa, !sp->isprobe);
+	saveie(&ise->se_rsn_ie, sp->rsn, !sp->isprobe);
+	saveie(&ise->se_ath_ie, sp->ath, 0);
 
 	/* clear failure count after STA_FAIL_AGE passes */
 	if (se->se_fails && 

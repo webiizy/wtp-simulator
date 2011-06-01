@@ -133,6 +133,7 @@ struct ieee80211_scanparams {
 	u_int8_t erp;
 	u_int16_t bintval;
 	u_int8_t timoff;
+	u_int8_t isprobe;
 	u_int8_t *tim;
 	u_int8_t *tstamp;
 	u_int8_t *country;
