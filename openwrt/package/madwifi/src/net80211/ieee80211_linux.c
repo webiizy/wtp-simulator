@@ -327,6 +327,9 @@ ieee80211_notify_replay_failure(struct ieee80211vap *vap,
 		k->wk_cipher->ic_name, k->wk_keyix,
 		(unsigned long long)rsc);
 
+	/* disabled for now due to bogus events for unknown reasons */
+	return;
+
 	/* TODO: needed parameters: count, keyid, key type, src address, TSC */
 	snprintf(buf, sizeof(buf), "%s(keyid=%d %scast addr=" MAC_FMT ")", tag,
 		k->wk_keyix,
