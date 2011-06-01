@@ -1203,7 +1203,7 @@ ieee80211_deliver_data(struct ieee80211_node *ni, struct sk_buff *skb)
 			ret = vlan_hwaccel_rx(skb,
 					vap->iv_vlgrp, ni->ni_vlan);
 		else
-			ret = netif_rx(skb);
+			ret = netif_receive_skb(skb);
 		if (ret == NET_RX_DROP)
 			vap->iv_devstats.rx_dropped++;
 		if (tni != NULL)
@@ -2303,7 +2303,7 @@ forward_mgmt_to_app(struct ieee80211vap *vap, int subtype, struct sk_buff *skb,
 
 		if (SKB_NI(skb1) != NULL)
 			ieee80211_unref_node(&SKB_NI(skb1));
-		if (netif_rx(skb1) == NET_RX_DROP)
+		if (netif_receive_skb(skb1) == NET_RX_DROP)
 			vap->iv_devstats.rx_dropped++;
 	}
 }

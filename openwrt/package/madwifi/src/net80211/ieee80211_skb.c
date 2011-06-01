@@ -73,7 +73,7 @@
 #undef dev_queue_xmit
 #undef kfree_skb
 #undef kfree_skb_fast
-#undef netif_rx
+#undef netif_receive_skb
 #undef pskb_copy
 #undef skb_clone
 #undef skb_copy
@@ -578,8 +578,8 @@ int  vlan_hwaccel_rx_debug(struct sk_buff *skb,
 		grp, vlan_tag);
 }
 
-int netif_rx_debug(struct sk_buff *skb, const char *func, int line) {
-	return netif_rx(untrack_skb(skb, 0, __func__, __LINE__));
+int netif_receive_skb_debug(struct sk_buff *skb, const char* func, int line) {
+	return netif_receive_skb(untrack_skb(skb, 0, func, line, __func__, __LINE__));
 }
 
 struct sk_buff *alloc_skb_debug(unsigned int length, gfp_t gfp_mask,
@@ -704,7 +704,7 @@ struct sk_buff *skb_copy_expand_debug(const struct sk_buff *skb, int newheadroom
 }
 
 EXPORT_SYMBOL(vlan_hwaccel_rx_debug);
-EXPORT_SYMBOL(netif_rx_debug);
+EXPORT_SYMBOL(netif_receive_skb_debug);
 EXPORT_SYMBOL(alloc_skb_debug);
 EXPORT_SYMBOL(dev_alloc_skb_debug);
 EXPORT_SYMBOL(skb_clone_debug);
