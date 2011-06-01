@@ -1137,7 +1137,7 @@ ieee80211_deliver_data(struct ieee80211_node *ni, struct sk_buff *skb)
 	    (vap->iv_flags & IEEE80211_F_NOBRIDGE) == 0) {
 		struct sk_buff *skb1 = NULL;
 
-		if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
+		if (ETHER_IS_MULTICAST(eh->ether_dhost) && !netif_queue_stopped(dev)) {
 			/* Create a SKB for the BSS to send out. */
 			skb1 = skb_copy(skb, GFP_ATOMIC);
 			if (skb1)

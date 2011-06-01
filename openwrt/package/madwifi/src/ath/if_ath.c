@@ -8699,13 +8699,23 @@ ath_tx_tasklet_q0(TQUEUE_ARG data)
 {
 	struct net_device *dev = (struct net_device *)data;
 	struct ath_softc *sc = netdev_priv(dev);
+	unsigned long flags;
 
+process_tx_again:
 	if (txqactive(sc->sc_ah, 0))
 		ath_tx_processq(sc, &sc->sc_txq[0]);
 	if (txqactive(sc->sc_ah, sc->sc_cabq->axq_qnum))
 		ath_tx_processq(sc, sc->sc_cabq);
 
-	netif_wake_queue(dev);
+	local_irq_save(flags);
+	if (sc->sc_isr & HAL_INT_TX) {
+		sc->sc_isr &= ~HAL_INT_TX;
+		local_irq_restore(flags);
+		goto process_tx_again;
+	}
+	sc->sc_imask |= HAL_INT_TX;
+	ath_hal_intrset(sc->sc_ah, sc->sc_imask);
+	local_irq_restore(flags);
 
 	if (sc->sc_softled)
 		ath_led_event(sc, ATH_LED_TX);
@@ -8720,7 +8730,9 @@ ath_tx_tasklet_q0123(TQUEUE_ARG data)
 {
 	struct net_device *dev = (struct net_device *)data;
 	struct ath_softc *sc = netdev_priv(dev);
+	unsigned long flags;
 
+process_tx_again:
 	/*
 	 * Process each active queue.
 	 */
@@ -8750,7 +8762,15 @@ ath_tx_tasklet_q0123(TQUEUE_ARG data)
 	if (sc->sc_uapsdq && txqactive(sc->sc_ah, sc->sc_uapsdq->axq_qnum))
 		ath_tx_processq(sc, sc->sc_uapsdq);
 
-	netif_wake_queue(dev);
+	local_irq_save(flags);
+	if (sc->sc_isr & HAL_INT_TX) {
+		sc->sc_isr &= ~HAL_INT_TX;
+		local_irq_restore(flags);
+		goto process_tx_again;
+	}
+	sc->sc_imask |= HAL_INT_TX;
+	ath_hal_intrset(sc->sc_ah, sc->sc_imask);
+	local_irq_restore(flags);
 
 	if (sc->sc_softled)
 		ath_led_event(sc, ATH_LED_TX);
@@ -8765,9 +8785,11 @@ ath_tx_tasklet(TQUEUE_ARG data)
 	struct net_device *dev = (struct net_device *)data;
 	struct ath_softc *sc = netdev_priv(dev);
 	unsigned int i;
+	unsigned long flags;
 
 	/* Process each active queue. This includes sc_cabq, sc_xrtq and
 	 * sc_uapsdq */
+process_tx_again:
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
 		if (ATH_TXQ_SETUP(sc, i) && (txqactive(sc->sc_ah, i) ||
 					(sc->sc_cabq->axq_qnum == i))) {
@@ -8782,7 +8804,15 @@ ath_tx_tasklet(TQUEUE_ARG data)
 				STAILQ_FIRST(&sc->sc_cabq->axq_q) ? "not setup" : "empty");
 		}
 	}
-	netif_wake_queue(dev);
+	local_irq_save(flags);
+	if (sc->sc_isr & HAL_INT_TX) {
+		sc->sc_isr &= ~HAL_INT_TX;
+		local_irq_restore(flags);
+		goto process_tx_again;
+	}
+	sc->sc_imask |= HAL_INT_TX;
+	ath_hal_intrset(sc->sc_ah, sc->sc_imask);
+	local_irq_restore(flags);
 
 	if (sc->sc_softled)
 		ath_led_event(sc, ATH_LED_TX);
@@ -9654,7 +9684,7 @@ done:
 bad:
 	netif_wake_queue(dev);
 	dev->watchdog_timeo = (timer_pending(&sc->sc_dfs_cac_timer) ?
-			       (sc->sc_dfs_cac_period + 1) * HZ : HZ);		/* set the timeout to normal */
+			       (sc->sc_dfs_cac_period + 1) * HZ : 5 * HZ);		/* set the timeout to normal */
 	return error;
 }
 
