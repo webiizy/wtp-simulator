@@ -209,6 +209,17 @@ saveie(u_int8_t **iep, const u_int8_t *ie)
 		ieee80211_saveie(iep, ie);
 }
 
+static inline int is_empty_ssid(u_int8_t *ssid)
+{
+	if (!ssid)
+		return 1;
+	if (ssid[1] == 0)
+		return 1;
+	if ((ssid[1] == 1) && (ssid[2] == 0))
+		return 1;
+	return 0;
+}
+
 /*
  * Process a beacon or probe response frame; create an
  * entry in the scan cache or update any previous entry.
@@ -229,12 +240,16 @@ sta_add(struct ieee80211_scan_state *ss, const struct ieee80211_scanparams *sp,
 	struct ieee80211_scan_entry *ise;
 	int hash;
 
+	/* workaround for broken APs that broadcast NULL BSSIDs */
+	if (memcmp(wh->i_addr3, "\x00\x00\x00\x00\x00\x00", 6) == 0)
+		return 0;
+
 	hash = STA_HASH(macaddr);
 	SCAN_STA_LOCK_IRQ(st);
 	LIST_FOREACH(se, &st->st_hash[hash], se_hash)
 		if (IEEE80211_ADDR_EQ(se->base.se_macaddr, macaddr) &&
-		    sp->ssid[1] == se->base.se_ssid[1] &&
-		    !memcmp(se->base.se_ssid+2, sp->ssid+2, se->base.se_ssid[1]))
+		    (is_empty_ssid(sp->ssid) || (sp->ssid[1] == se->base.se_ssid[1] &&
+		    !memcmp(se->base.se_ssid+2, sp->ssid+2, se->base.se_ssid[1]))))
 			goto found;
 
 	MALLOC(se, struct sta_entry *, sizeof(struct sta_entry),
@@ -252,8 +267,8 @@ found:
 	ise = &se->base;
 
 	/* XXX ap beaconing multiple ssid w/ same bssid */
-	if (sp->ssid[1] != 0 &&
-	    (ISPROBE(subtype) || ise->se_ssid[1] == 0))
+	if (!is_empty_ssid(sp->ssid) &&
+	    (ISPROBE(subtype) || is_empty_ssid(ise->se_ssid)))
 		memcpy(ise->se_ssid, sp->ssid, 2 + sp->ssid[1]);
 
 	memcpy(ise->se_rates, sp->rates, 
