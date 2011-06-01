@@ -10564,11 +10564,11 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 	sc->sc_currates = rt;
 	sc->sc_curmode = mode;
 	/*
-	 * All protection frames are transmitted at 2Mb/s for
-	 * 11g, otherwise at 1Mb/s.
+	 * All protection frames are transmitted at 11Mb/s for
+	 * 11g, otherwise at 2Mb/s.
 	 * XXX select protection rate index from rate table.
 	 */
-	sc->sc_protrix = (mode == IEEE80211_MODE_11G ? 1 : 0);
+	sc->sc_protrix = (mode == IEEE80211_MODE_11G ? 3 : 1);
 	/* rate index used to send mgt frames */
 	sc->sc_minrateix = 0;
 }
