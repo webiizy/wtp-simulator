@@ -312,6 +312,7 @@ struct ieee80211com {
 	struct ifmedia ic_media;		/* interface media config */
 	u_int8_t ic_myaddr[IEEE80211_ADDR_LEN];
 	struct timer_list ic_inact;		/* mgmt/inactivity timer */
+	u_int ic_recv;					/* frame received counter */
 
 	u_int32_t ic_flags;			/* state flags */
 	u_int32_t ic_flags_ext;			/* extension of state flags */

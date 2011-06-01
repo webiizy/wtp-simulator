@@ -115,7 +115,7 @@ int ieee80211_skb_references(void);
 
 int vlan_hwaccel_rx_debug(struct sk_buff *skb, struct vlan_group *grp,
 		unsigned short vlan_tag, const char *func, int line);
-int netif_rx_debug(struct sk_buff *skb, const char *func, int line);
+int netif_receive_skb_debug(struct sk_buff *skb, const char* func, int line);
 struct sk_buff *alloc_skb_debug(unsigned int length, gfp_t gfp_mask,
 		const char *func, int line);
 struct sk_buff *dev_alloc_skb_debug(unsigned int length,
@@ -150,7 +150,7 @@ struct sk_buff *skb_copy_expand_debug(const struct sk_buff *skb, int newheadroom
 #undef dev_queue_xmit
 #undef kfree_skb
 #undef kfree_skb_fast
-#undef netif_rx
+#undef netif_receive_skb
 #undef pskb_copy
 #undef skb_clone
 #undef skb_copy
@@ -167,8 +167,8 @@ struct sk_buff *skb_copy_expand_debug(const struct sk_buff *skb, int newheadroom
 	skb_copy_expand_debug(_skb, _newheadroom, _newtailroom, _gfp_mask, __func__, __LINE__)
 #define vlan_hwaccel_rx(_skb, _grp, _tag) \
 	vlan_hwaccel_rx_debug(_skb, _grp, _tag, __func__, __LINE__)
-#define netif_rx(_skb) \
-	netif_rx_debug(_skb, __func__, __LINE__)
+#define netif_receive_skb(_skb) \
+	netif_receive_skb_debug(_skb, __func__, __LINE__)
 #define	alloc_skb(_length, _gfp_mask) \
 	alloc_skb_debug(_length, _gfp_mask, __func__, __LINE__)
 #define	dev_alloc_skb(_length) \

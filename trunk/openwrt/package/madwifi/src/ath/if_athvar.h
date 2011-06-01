@@ -56,6 +56,10 @@
 # include	<asm/bitops.h>
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+#define irqs_disabled()			0
+#endif
+
 /*
  * Deduce if tasklets are available.  If not then
  * fall back to using the immediate work queue.
@@ -649,6 +653,9 @@ struct ath_rp {
 struct ath_softc {
 	struct ieee80211com sc_ic;		/* NB: must be first */
 	struct net_device *sc_dev;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+	struct napi_struct sc_napi;
+#endif
 	void __iomem *sc_iobase;		/* address of the device */
 	struct semaphore sc_lock;		/* dev-level lock */
 	struct net_device_stats	sc_devstats;	/* device statistics */
@@ -771,7 +778,6 @@ struct ath_softc {
 	struct ath_buf *sc_rxbufcur;		/* current rx buffer */
 	u_int32_t *sc_rxlink;			/* link ptr in last RX desc */
 	spinlock_t sc_rxbuflock;
-	struct ATH_TQ_STRUCT sc_rxtq;		/* rx intr tasklet */
 	struct ATH_TQ_STRUCT sc_rxorntq;	/* rxorn intr tasklet */
 	u_int16_t sc_cachelsz;			/* cache line size */
 
@@ -784,6 +790,7 @@ struct ath_softc {
 	u_int sc_txintrperiod;			/* tx interrupt batching */
 	struct ath_txq sc_txq[HAL_NUM_TX_QUEUES];
 	struct ath_txq *sc_ac2q[WME_NUM_AC];	/* WME AC -> h/w qnum */
+	HAL_INT sc_isr;				/* unmasked ISR state */
 	struct ATH_TQ_STRUCT sc_txtq;		/* tx intr tasklet */
 	u_int8_t sc_grppoll_str[GRPPOLL_RATE_STR_LEN];
 	struct ath_descdma sc_bdma;		/* beacon descriptors */
@@ -901,6 +908,8 @@ typedef void (*ath_callback) (struct ath_softc *);
 #define	ATH_TXBUF_LOCK_CHECK(_sc)
 #endif
 
+#define ATH_DISABLE_INTR		local_irq_disable
+#define ATH_ENABLE_INTR 		local_irq_enable
 
 #define	ATH_RXBUF_LOCK_INIT(_sc)	spin_lock_init(&(_sc)->sc_rxbuflock)
 #define	ATH_RXBUF_LOCK_DESTROY(_sc)

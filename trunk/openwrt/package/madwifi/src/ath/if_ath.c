@@ -183,7 +183,11 @@ static int ath_recv_mgmt(struct ieee80211vap *, struct ieee80211_node *,
 	struct sk_buff *, int, int, u_int64_t);
 static void ath_setdefantenna(struct ath_softc *, u_int);
 static struct ath_txq *ath_txq_setup(struct ath_softc *, int, int);
-static void ath_rx_tasklet(TQUEUE_ARG);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+static int ath_rx_poll(struct napi_struct *napi, int budget);
+#else
+static int ath_rx_poll(struct net_device *dev, int *budget);
+#endif
 static int ath_hardstart(struct sk_buff *, struct net_device *);
 static int ath_mgtstart(struct ieee80211com *, struct sk_buff *);
 #ifdef ATH_SUPERG_COMP
@@ -315,6 +319,8 @@ static u_int32_t ath_get_clamped_maxtxpower(struct ath_softc *sc);
 static u_int32_t ath_set_clamped_maxtxpower(struct ath_softc *sc, 
 		u_int32_t new_clamped_maxtxpower);
 
+static void ath_poll_disable(struct net_device *dev);
+static void ath_poll_enable(struct net_device *dev);
 static void ath_scanbufs(struct ath_softc *sc);
 static int ath_debug_iwpriv(struct ieee80211com *ic, 
 		unsigned int param, unsigned int value);
@@ -575,7 +581,6 @@ ath_attach(u_int16_t devid, struct net_device *dev, HAL_BUS_TAG tag)
 
 	atomic_set(&sc->sc_txbuf_counter, 0);
 
-	ATH_INIT_TQUEUE(&sc->sc_rxtq,		ath_rx_tasklet,		dev);
 	ATH_INIT_TQUEUE(&sc->sc_txtq,		ath_tx_tasklet,		dev);
 	ATH_INIT_TQUEUE(&sc->sc_bmisstq,	ath_bmiss_tasklet,	dev);
 	ATH_INIT_TQUEUE(&sc->sc_bstucktq,	ath_bstuck_tasklet,	dev);
@@ -907,6 +912,12 @@ ath_attach(u_int16_t devid, struct net_device *dev, HAL_BUS_TAG tag)
 #endif
 	dev->watchdog_timeo = 5 * HZ;
 	dev->tx_queue_len = ATH_TXBUF - ATH_TXBUF_MGT_RESERVED;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+	netif_napi_add(dev, &sc->sc_napi, ath_rx_poll, 64);
+#else
+	dev->poll = ath_rx_poll;
+	dev->weight = 64;
+#endif
 #ifdef USE_HEADERLEN_RESV
 	dev->hard_header_len += sizeof(struct ieee80211_qosframe) +
 				sizeof(struct llc) +
@@ -2490,8 +2501,8 @@ ath_intr_process_rx_descriptors(struct ath_softc *sc, int *pneedmark, u_int64_t 
 	}
 
 	/* If we got something to process, schedule rx queue to handle it */
-	if (count)
-		ATH_SCHEDULE_TQUEUE(&sc->sc_rxtq, pneedmark);
+	//if (count)
+	//	ATH_SCHEDULE_TQUEUE(&sc->sc_rxtq, pneedmark);
 	ATH_RXBUF_UNLOCK_IRQ(sc);
 #undef PA2DESC
 }
@@ -2581,6 +2592,7 @@ ath_intr(int irq, void *dev_id, struct pt_regs *regs)
 		(status & HAL_INT_GLOBAL)	? " HAL_INT_GLOBAL"	: ""
 		);
 
+	sc->sc_isr = status;
 	status &= sc->sc_imask;			/* discard unasked for bits */
 	/* As soon as we know we have a real interrupt we intend to service, 
 	 * we will check to see if we need an initial hardware TSF reading. 
@@ -2638,6 +2650,26 @@ ath_intr(int irq, void *dev_id, struct pt_regs *regs)
 		if (status & (HAL_INT_RX | HAL_INT_RXPHY)) {
 			/* NB: Will schedule rx tasklet if necessary. */
 			ath_intr_process_rx_descriptors(sc, &needmark, hw_tsf);
+			//ath_intr_process_rx_descriptors(sc, hw_tsf);
+			sc->sc_isr &= ~HAL_INT_RX;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29)
+			if (napi_schedule_prep(&sc->sc_napi))
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+			if (netif_rx_schedule_prep(dev, &sc->sc_napi))
+#else
+			if (netif_rx_schedule_prep(dev))
+#endif
+			{
+				sc->sc_imask &= ~HAL_INT_RX;
+				ath_hal_intrset(ah, sc->sc_imask);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29)
+				__napi_schedule(&sc->sc_napi);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+				__netif_rx_schedule(dev, &sc->sc_napi);
+#else
+				__netif_rx_schedule(dev);
+#endif
+			}
 		}
 		if (status & HAL_INT_TX) {
 #ifdef ATH_SUPERG_DYNTURBO
@@ -2663,6 +2695,11 @@ ath_intr(int irq, void *dev_id, struct pt_regs *regs)
 				}
 			}
 #endif
+			/* disable transmit interrupt */
+			sc->sc_isr &= ~HAL_INT_TX;
+			ath_hal_intrset(ah, sc->sc_imask & ~HAL_INT_TX);
+			sc->sc_imask &= ~HAL_INT_TX;
+
 			ATH_SCHEDULE_TQUEUE(&sc->sc_txtq, &needmark);
 		}
 		if (status & HAL_INT_BMISS) {
@@ -2854,6 +2891,7 @@ ath_init(struct net_device *dev)
 	if (sc->sc_tx99 != NULL)
 		sc->sc_tx99->start(sc->sc_tx99);
 #endif
+	ath_poll_enable(dev);
 
 done:
 	ATH_UNLOCK(sc);
@@ -2893,6 +2931,9 @@ ath_stop_locked(struct net_device *dev)
 #ifdef ATH_TX99_DIAG
 		if (sc->sc_tx99 != NULL)
 			sc->sc_tx99->stop(sc->sc_tx99);
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+		ath_poll_disable(dev);
 #endif
 		netif_stop_queue(dev);	/* XXX re-enabled by ath_newstate */
 		dev->flags &= ~IFF_RUNNING;	/* NB: avoid recursion */
@@ -4361,12 +4402,47 @@ ath_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
 	return ath_keyset(sc, k, mac, vap->iv_bss);
 }
 
+static void ath_poll_disable(struct net_device *dev)
+{
+	struct ath_softc *sc = netdev_priv(dev);
+
+	/*
+	 * XXX Using in_softirq is not right since we might
+	 * be called from other soft irq contexts than
+	 * ath_rx_poll
+	 */
+	if (!in_softirq()) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+		napi_disable(&sc->sc_napi);
+#else
+		netif_poll_disable(dev);
+#endif
+	}
+}
+
+static void ath_poll_enable(struct net_device *dev)
+{
+	struct ath_softc *sc = netdev_priv(dev);
+
+	/* NB: see above */
+	if (!in_softirq()) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+		napi_enable(&sc->sc_napi);
+#else
+		netif_poll_enable(dev);
+#endif
+	}
+}
+
+
 /*
  * Block/unblock tx+rx processing while a key change is done.
  * We assume the caller serializes key management operations
  * so we only need to worry about synchronization with other
  * uses that originate in the driver.
  */
+#define	IS_UP(_dev) \
+	(((_dev)->flags & (IFF_RUNNING|IFF_UP)) == (IFF_RUNNING|IFF_UP))
 static void
 ath_key_update_begin(struct ieee80211vap *vap)
 {
@@ -4378,14 +4454,9 @@ ath_key_update_begin(struct ieee80211vap *vap)
 	 * When called from the rx tasklet we cannot use
 	 * tasklet_disable because it will block waiting
 	 * for us to complete execution.
-	 *
-	 * XXX Using in_softirq is not right since we might
-	 * be called from other soft irq contexts than
-	 * ath_rx_tasklet.
 	 */
-	if (!in_softirq())
-		tasklet_disable(&sc->sc_rxtq);
-	netif_stop_queue(dev);
+	if (IS_UP(vap->iv_dev))
+		netif_stop_queue(dev);
 }
 
 static void
@@ -4395,9 +4466,9 @@ ath_key_update_end(struct ieee80211vap *vap)
 	struct ath_softc *sc = netdev_priv(dev);
 
 	DPRINTF(sc, ATH_DEBUG_KEYCACHE, "End\n");
-	netif_wake_queue(dev);
-	if (!in_softirq())		/* NB: see above */
-		tasklet_enable(&sc->sc_rxtq);
+
+	if (IS_UP(vap->iv_dev))
+		netif_wake_queue(dev);
 }
 
 /*
@@ -6715,15 +6786,26 @@ ath_setdefantenna(struct ath_softc *sc, u_int antenna)
 	sc->sc_numrxotherant = 0;
 }
 
-static void
-ath_rx_tasklet(TQUEUE_ARG data)
+static int
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+ath_rx_poll(struct napi_struct *napi, int budget)
+#else
+ath_rx_poll(struct net_device *dev, int *budget)
+#endif
 {
 #define	PA2DESC(_sc, _pa) \
 	((struct ath_desc *)((caddr_t)(_sc)->sc_rxdma.dd_desc + \
 		((_pa) - (_sc)->sc_rxdma.dd_desc_paddr)))
-	struct net_device *dev = (struct net_device *)data;
-	struct ath_buf *bf;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+	struct ath_softc *sc = container_of(napi, struct ath_softc, sc_napi);
+	//struct net_device *dev = sc->sc_dev;
+	//int rx_limit = budget;
+#else
 	struct ath_softc *sc = netdev_priv(dev);
+	int rx_limit = min(dev->quota, *budget);
+#endif
+	struct ath_buf *bf;
+	//struct ath_softc *sc = netdev_priv(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_hal *ah = sc ? sc->sc_ah : NULL;
 	struct ath_rx_status *rs;
@@ -6735,6 +6817,7 @@ ath_rx_tasklet(TQUEUE_ARG data)
 	int bf_processed = 0;
 	int skb_accepted = 0;
 	int errors	 = 0;
+	//u_int processed = 0, early_stop = 0;
 
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s started...\n", __func__);
 	do {
@@ -7010,6 +7093,7 @@ rx_next:
 		" %d rx buf processed. %d were errors. %d skb accepted.\n",
 		__func__, bf_processed, errors, skb_accepted);
 #undef PA2DESC
+	return 0;
 }
 
 #ifdef ATH_SUPERG_XR
@@ -10663,9 +10747,9 @@ ath_change_mtu(struct net_device *dev, int mtu)
 	dev->mtu = mtu;
 	if ((dev->flags & IFF_RUNNING) && !sc->sc_invalid) {
 		/* NB: the rx buffers may need to be reallocated */
-		tasklet_disable(&sc->sc_rxtq);
+		ath_poll_disable(dev);
 		error = ath_reset(dev);
-		tasklet_enable(&sc->sc_rxtq);
+		ath_poll_enable(dev);
 	}
 	ATH_UNLOCK(sc);
 
