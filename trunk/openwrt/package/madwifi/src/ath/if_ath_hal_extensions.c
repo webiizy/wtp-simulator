@@ -110,7 +110,10 @@ ar_device(struct ath_softc *sc)
 int
 ath_set_ack_bitrate(struct ath_softc *sc, int high)
 {
-	if (ar_device(sc) == 5212) {
+	if (!sc->sc_ackrate_override)
+		return 0;
+
+	if (ar_device(sc) == 5212 || ar_device(sc) == 5213) {
 		/* set ack to be sent at low bit-rate */
 		u_int32_t v = AR5K_STA_ID1_BASE_RATE_11B | AR5K_STA_ID1_ACKCTS_6MB;
 		if (high)
