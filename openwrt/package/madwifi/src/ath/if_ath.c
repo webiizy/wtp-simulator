@@ -3973,7 +3973,8 @@ ath_mgtstart(struct ieee80211com *ic, struct sk_buff *skb)
 	sc->sc_stats.ast_tx_mgmt++;
 	return 0;
 bad:
-	ieee80211_dev_kfree_skb(&skb);
+	if (skb)
+		ieee80211_dev_kfree_skb(&skb);
 	ath_return_txbuf(sc, &bf);
 	return error;
 }
