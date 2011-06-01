@@ -11108,8 +11108,13 @@ ATH_SYSCTL_DECL(ath_sysctl_halparam, ctl, write, filp, buffer, lenp, ppos)
 				break;
 #endif
 			case ATH_ACKRATE:
-				sc->sc_ackrate = val;
-				ath_set_ack_bitrate(sc, sc->sc_ackrate);
+				if (val == -1)
+					sc->sc_ackrate_override = 0;
+				else {
+					sc->sc_ackrate_override = 1;
+					sc->sc_ackrate = val;
+					ath_set_ack_bitrate(sc, sc->sc_ackrate);
+				}
 				break;
 			case ATH_RP:
 				ath_rp_record(sc,
@@ -11884,7 +11889,7 @@ txcont_configure_radio(struct ieee80211com *ic)
 		ath_set_ack_bitrate(sc, sc->sc_ackrate);
 		netif_wake_queue(dev);		/* restart xmit */
 
-		if (ar_device(sc) == 5212) {
+		if (ar_device(sc) == 5212 || ar_device(sc) == 5213) {
 			/* registers taken from openhal */
 #define AR5K_AR5212_TXCFG				0x0030
 #define AR5K_AR5212_TXCFG_TXCONT_ENABLE			0x00000080
