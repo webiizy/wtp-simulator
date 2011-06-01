@@ -3345,6 +3345,11 @@ ieee80211_recv_mgmt(struct ieee80211vap *vap,
 			ieee80211_add_scan(vap, &scan, wh, subtype, rssi, rtsf);
 			return 0;
 		}
+
+		/* stop processing if the bss channel is not set up yet */
+		if (!ic->ic_bsschan || ic->ic_bsschan == IEEE80211_CHAN_ANYC)
+			break;
+
 		if ((vap->iv_opmode == IEEE80211_M_IBSS) && 
 				(scan.capinfo & IEEE80211_CAPINFO_IBSS)) {
 			if (ni_or_null == NULL) {
