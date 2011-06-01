@@ -1459,7 +1459,7 @@ ath_vap_create(struct ieee80211com *ic, const char *name,
 			TAILQ_FOREACH(v, &ic->ic_vaps, iv_next)
 				id_mask |= (1 << ATH_GET_VAP_ID(v->iv_myaddr));
 
-			for (id = 1; id < ath_maxvaps; id++) {
+			for (id = 0; id < ath_maxvaps; id++) {
 				/* Get the first available slot. */
 				if ((id_mask & (1 << id)) == 0) {
 					ATH_SET_VAP_BSSID(vap->iv_myaddr, id);
