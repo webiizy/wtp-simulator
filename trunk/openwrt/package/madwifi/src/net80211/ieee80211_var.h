@@ -203,6 +203,7 @@ struct ieee80211vap {
 	u_int32_t iv_debug;				/* debug msg flags */
 	struct ieee80211_stats iv_stats;		/* statistics */
 
+	int iv_no_probereq;
 	int iv_monitor_nods_only;			/* in monitor mode only nods traffic */
 	int iv_monitor_txf_len;				/* in monitor mode, truncate tx packets */
 	int iv_monitor_phy_errors;			/* in monitor mode, accept phy errors */
