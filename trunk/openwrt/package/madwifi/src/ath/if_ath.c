@@ -2594,6 +2594,17 @@ ath_intr(int irq, void *dev_id, struct pt_regs *regs)
 
 	sc->sc_isr = status;
 	status &= sc->sc_imask;			/* discard unasked for bits */
+
+	/* Treat RXORN as non-fatal. Either the bus is busy or the CPU
+	 * is not fast enough to process all frames. Treat it like
+	 * an Rx interrupt
+	 */
+	if (status & HAL_INT_RXORN) {
+		sc->sc_stats.ast_rxorn++;
+		status &= ~HAL_INT_RXORN;
+		status |= HAL_INT_RX;
+	}
+
 	/* As soon as we know we have a real interrupt we intend to service, 
 	 * we will check to see if we need an initial hardware TSF reading. 
 	 * Normally we would just populate this all the time to keep things
@@ -2606,10 +2617,6 @@ ath_intr(int irq, void *dev_id, struct pt_regs *regs)
 		sc->sc_stats.ast_hardware++;
 		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
 		ATH_SCHEDULE_TQUEUE(&sc->sc_fataltq, &needmark);
-	} else if (status & HAL_INT_RXORN) {
-		sc->sc_stats.ast_rxorn++;
-		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
-		ATH_SCHEDULE_TQUEUE(&sc->sc_rxorntq, &needmark);
 	} else {
 		if (status & HAL_INT_SWBA) {
 			u_int32_t hw_tsftu = IEEE80211_TSF_TO_TU(hw_tsf);
