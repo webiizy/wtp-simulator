@@ -3014,6 +3014,7 @@ ieee80211_recv_mgmt(struct ieee80211vap *vap,
 		 */
 		IEEE80211_VERIFY_LENGTH(efrm - frm, 12);
 		memset(&scan, 0, sizeof(scan));
+		scan.isprobe = (subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP) && IEEE80211_ADDR_EQ(wh->i_addr2, vap->iv_myaddr);
 		scan.tstamp  = frm;
 		frm += 8;
 		scan.bintval = le16toh(*(__le16 *)frm);
