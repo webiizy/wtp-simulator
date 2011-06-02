@@ -5461,10 +5461,14 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap, int *needmar
 					 tbf->bf_skb->data)->i_fc[1] |= 
 						IEEE80211_FC1_MORE_DATA;
 			}
+			/* Keep record of whether cabq is empty before we append to it */ 
+			tbf = STAILQ_FIRST(&cabq->axq_q); 
 
 			/* Append the private VAP mcast list to the cabq. */
 			ATH_TXQ_MOVE_Q(&avp->av_mcastq, cabq);
-			if (!STAILQ_FIRST(&cabq->axq_q))
+			//if (!STAILQ_FIRST(&cabq->axq_q))
+			/* Update TXDP in hardware after we first populate cabq */ 
+			if (tbf == NULL) 
 				ath_hw_puttxbuf(sc, cabq->axq_qnum,
 					bfmcast->bf_daddr,
 					__func__);
