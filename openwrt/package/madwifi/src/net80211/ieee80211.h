@@ -779,14 +779,14 @@ struct ieee80211_ie_wpa {
  * NB: these reflect D1.10 
  */
 struct ieee80211_ie_htcap {
-	uint8_t		hc_id;			/* element ID */
-	uint8_t		hc_len;			/* length in bytes */
-	uint16_t	hc_cap;			/* HT caps (see below) */
-	uint8_t		hc_param;		/* HT params (see below) */
-	uint8_t 	hc_mcsset[16]; 		/* supported MCS set */
-	uint16_t	hc_extcap;		/* extended HT capabilities */
-	uint32_t	hc_txbf;		/* txbf capabilities */
-	uint8_t		hc_antenna;		/* antenna capabilities */
+	u_int8_t	hc_id;			/* element ID */
+	u_int8_t	hc_len;			/* length in bytes */
+	u_int16_t	hc_cap;			/* HT caps (see below) */
+	u_int8_t	hc_param;		/* HT params (see below) */
+	u_int8_t 	hc_mcsset[16]; 		/* supported MCS set */
+	u_int16_t	hc_extcap;		/* extended HT capabilities */
+	u_int32_t	hc_txbf;		/* txbf capabilities */
+	u_int8_t	hc_antenna;		/* antenna capabilities */
 } __packed;
 
 /* HT capability flags (ht_cap) */
@@ -859,14 +859,14 @@ struct ieee80211_ie_htcap {
  * 802.11n HT Information IE
  */
 struct ieee80211_ie_htinfo {
-	uint8_t		hi_id;			/* element ID */
-	uint8_t		hi_len;			/* length in bytes */
-	uint8_t		hi_ctrlchannel;		/* primary channel */
-	uint8_t		hi_byte1;		/* ht ie byte 1 */
-	uint8_t		hi_byte2;		/* ht ie byte 2 */
-	uint8_t		hi_byte3;		/* ht ie byte 3 */
-	uint16_t	hi_byte45;		/* ht ie bytes 4+5 */
-	uint8_t 	hi_basicmcsset[16]; 	/* basic MCS set */
+	u_int8_t	hi_id;			/* element ID */
+	u_int8_t	hi_len;			/* length in bytes */
+	u_int8_t	hi_ctrlchannel;		/* primary channel */
+	u_int8_t	hi_byte1;		/* ht ie byte 1 */
+	u_int8_t	hi_byte2;		/* ht ie byte 2 */
+	u_int8_t	hi_byte3;		/* ht ie byte 3 */
+	u_int16_t	hi_byte45;		/* ht ie bytes 4+5 */
+	u_int8_t 	hi_basicmcsset[16]; 	/* basic MCS set */
 } __packed;
 
 /* byte1 */

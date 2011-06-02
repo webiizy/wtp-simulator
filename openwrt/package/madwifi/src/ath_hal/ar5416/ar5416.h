@@ -21,6 +21,7 @@
 
 #include "ar5212/ar5212.h"
 #include "ar5416_cal.h"
+#include "ah_eeprom_v14.h"	/* for CAL_TARGET_POWER_* */
 
 #define	AR5416_MAGIC	0x20065416
 
@@ -44,6 +45,7 @@ typedef struct {
 #define	AR5416_CCA_MAX_GOOD_VALUE	-85
 #define	AR5416_CCA_MAX_HIGH_VALUE	-62
 #define	AR5416_CCA_MIN_BAD_VALUE	-140
+#define	AR9285_CCA_MAX_GOOD_VALUE	-118
 
 #define AR5416_SPUR_RSSI_THRESH		40
 
@@ -67,6 +69,7 @@ struct ath_hal_5416 {
 			    HAL_CHANNEL_INTERNAL *);
 
 	u_int       	ah_globaltxtimeout;	/* global tx timeout */
+	u_int		ah_gpioMask;
 	int		ah_hangs;		/* h/w hangs state */
 	uint8_t		ah_keytype[AR5416_KEYTABLE_SIZE];
 	/*
@@ -179,6 +182,8 @@ extern	HAL_BOOL ar5416GetChipPowerLimits(struct ath_hal *ah,
 		HAL_CHANNEL *chans, uint32_t nchans);
 extern	void ar5416GetChannelCenters(struct ath_hal *,
 		HAL_CHANNEL_INTERNAL *chan, CHAN_CENTERS *centers);
+
+
 
 extern	HAL_BOOL ar5416StopTxDma(struct ath_hal *ah, u_int q);
 extern	HAL_BOOL ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,

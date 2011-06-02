@@ -179,7 +179,8 @@ typedef struct {
 			halExtChanDfsSupport		: 1,
 			halForcePpmSupport		: 1,
 			halEnhancedPmSupport		: 1,
-			halMbssidAggrSupport		: 1;
+			halMbssidAggrSupport		: 1,
+			halBssidMatchSupport		: 1;
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
 	uint16_t	halKeyCacheSize;
@@ -192,6 +193,7 @@ typedef struct {
 	uint8_t		halNumGpioPins;
 	uint8_t		halNumAntCfg2GHz;
 	uint8_t		halNumAntCfg5GHz;
+	uint32_t	halIntrMask;
 } HAL_CAPABILITIES;
 
 /*
@@ -324,9 +326,9 @@ struct ath_hal_private {
 #define	ath_hal_disablePCIE(_ah) \
 	(_ah)->ah_disablePCIE(_ah)
 
-#define	ath_hal_eepromDetach(_ah) do { \
-	if (AH_PRIVATE(_ah)->ah_eepromDetach) \
-		AH_PRIVATE(_ah)->ah_eepromDetach(_ah); \
+#define	ath_hal_eepromDetach(_ah) do {				\
+	if (AH_PRIVATE(_ah)->ah_eepromDetach != AH_NULL)	\
+		AH_PRIVATE(_ah)->ah_eepromDetach(_ah);		\
 } while (0)
 #define	ath_hal_eepromGet(_ah, _param, _val) \
 	AH_PRIVATE(_ah)->ah_eepromGet(_ah, _param, _val)

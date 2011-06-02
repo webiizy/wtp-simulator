@@ -104,7 +104,7 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 		isr = OS_REG_READ(ah, AR_ISR_RAC);
 		if (isr == 0xffffffff) {
 			*masked = 0;
-			return AH_FALSE;;
+			return AH_FALSE;
 		}
 
 		*masked = isr & HAL_INT_COMMON;
@@ -118,6 +118,13 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 			isr1 = OS_REG_READ(ah, AR_ISR_S1_S);
 			ahp->ah_intrTxqs |= MS(isr1, AR_ISR_S1_QCU_TXERR);
 			ahp->ah_intrTxqs |= MS(isr1, AR_ISR_S1_QCU_TXEOL);
+		}
+
+		if (AR_SREV_MERLIN(ah) || AR_SREV_KITE(ah)) {
+			uint32_t isr5;
+			isr5 = OS_REG_READ(ah, AR_ISR_S5_S);
+			if (isr5 & AR_ISR_S5_TIM_TIMER)
+				*masked |= HAL_INT_TIM_TIMER;
 		}
 
 		/* Interrupt Mitigation on AR5416 */
@@ -248,11 +255,19 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 		HALDEBUG(ah, HAL_DEBUG_INTERRUPT, "%s: enable IER\n", __func__);
 		OS_REG_WRITE(ah, AR_IER, AR_IER_ENABLE);
 
-		OS_REG_WRITE(ah, AR_INTR_ASYNC_ENABLE, AR_INTR_MAC_IRQ);
-		OS_REG_WRITE(ah, AR_INTR_ASYNC_MASK, AR_INTR_MAC_IRQ);
+		mask = AR_INTR_MAC_IRQ;
+		if (ints & HAL_INT_GPIO)
+			mask |= SM(AH5416(ah)->ah_gpioMask,
+			    AR_INTR_ASYNC_MASK_GPIO);
+		OS_REG_WRITE(ah, AR_INTR_ASYNC_ENABLE, mask);
+		OS_REG_WRITE(ah, AR_INTR_ASYNC_MASK, mask);
 
-		OS_REG_WRITE(ah, AR_INTR_SYNC_ENABLE, AR_INTR_SYNC_DEFAULT);
-		OS_REG_WRITE(ah, AR_INTR_SYNC_MASK, AR_INTR_SYNC_DEFAULT);
+		mask = AR_INTR_SYNC_DEFAULT;
+		if (ints & HAL_INT_GPIO)
+			mask |= SM(AH5416(ah)->ah_gpioMask,
+			    AR_INTR_SYNC_MASK_GPIO);
+		OS_REG_WRITE(ah, AR_INTR_SYNC_ENABLE, mask);
+		OS_REG_WRITE(ah, AR_INTR_SYNC_MASK, mask);
 	}
 
 	return omask;

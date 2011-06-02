@@ -38,8 +38,19 @@
 HAL_BOOL
 ar5416GpioCfgOutput(struct ath_hal *ah, uint32_t gpio)
 {
-	HALASSERT(gpio < AR_NUM_GPIO);
-	OS_REG_CLR_BIT(ah, AR_GPIO_INTR_OUT, AR_GPIO_BIT(gpio));
+	uint32_t gpio_shift, reg;
+
+	HALASSERT(gpio < AH_PRIVATE(ah)->ah_caps.halNumGpioPins);
+
+	/* NB: type maps directly to hardware */
+	//cfgOutputMux(ah, gpio, type);
+	gpio_shift = gpio << 1;			/* 2 bits per output mode */
+
+	reg = OS_REG_READ(ah, AR_GPIO_OE_OUT);
+	reg &= ~(AR_GPIO_OE_OUT_DRV << gpio_shift);
+	reg |= AR_GPIO_OE_OUT_DRV_ALL << gpio_shift;
+	OS_REG_WRITE(ah, AR_GPIO_OE_OUT, reg);
+
 	return AH_TRUE;
 }
 
@@ -49,8 +60,19 @@ ar5416GpioCfgOutput(struct ath_hal *ah, uint32_t gpio)
 HAL_BOOL
 ar5416GpioCfgInput(struct ath_hal *ah, uint32_t gpio)
 {
-	HALASSERT(gpio < AR_NUM_GPIO);
-	OS_REG_SET_BIT(ah, AR_GPIO_INTR_OUT, AR_GPIO_BIT(gpio));
+	uint32_t gpio_shift, reg;
+
+	HALASSERT(gpio < AH_PRIVATE(ah)->ah_caps.halNumGpioPins);
+
+	/* TODO: configure input mux for AR5416 */
+	/* If configured as input, set output to tristate */
+	gpio_shift = gpio << 1;
+
+	reg = OS_REG_READ(ah, AR_GPIO_OE_OUT);
+	reg &= ~(AR_GPIO_OE_OUT_DRV << gpio_shift);
+	reg |= AR_GPIO_OE_OUT_DRV_ALL << gpio_shift;
+	OS_REG_WRITE(ah, AR_GPIO_OE_OUT, reg);
+
 	return AH_TRUE;
 }
 
@@ -62,14 +84,14 @@ ar5416GpioSet(struct ath_hal *ah, uint32_t gpio, uint32_t val)
 {
 	uint32_t reg;
 
-	HALASSERT(gpio < AR_NUM_GPIO);
-	reg = MS(OS_REG_READ(ah, AR_GPIO_INTR_OUT), AR_GPIO_OUT_VAL);
+	HALASSERT(gpio < AH_PRIVATE(ah)->ah_caps.halNumGpioPins);
+
+	reg = OS_REG_READ(ah, AR_GPIO_IN_OUT);
 	if (val & 1)
 		reg |= AR_GPIO_BIT(gpio);
 	else 
 		reg &= ~AR_GPIO_BIT(gpio);
-		
-	OS_REG_RMW_FIELD(ah, AR_GPIO_INTR_OUT, AR_GPIO_OUT_VAL, reg);	
+	OS_REG_WRITE(ah, AR_GPIO_IN_OUT, reg);	
 	return AH_TRUE;
 }
 
@@ -79,9 +101,21 @@ ar5416GpioSet(struct ath_hal *ah, uint32_t gpio, uint32_t val)
 uint32_t
 ar5416GpioGet(struct ath_hal *ah, uint32_t gpio)
 {
-	if (gpio >= AR_NUM_GPIO)
+	uint32_t bits;
+
+	if (gpio >= AH_PRIVATE(ah)->ah_caps.halNumGpioPins)
 		return 0xffffffff;
-	return ((OS_REG_READ(ah, AR_GPIO_IN) & AR_GPIO_BIT(gpio)) >> gpio);
+	/*
+	 * Read output value for all gpio's, shift it,
+	 * and verify whether the specific bit is set.
+	 */
+	if (AR_SREV_KITE_10_OR_LATER(ah))
+		bits = MS(OS_REG_READ(ah, AR_GPIO_IN_OUT), AR9285_GPIO_IN_VAL);
+	else if (AR_SREV_MERLIN_10_OR_LATER(ah))
+		bits = MS(OS_REG_READ(ah, AR_GPIO_IN_OUT), AR928X_GPIO_IN_VAL);
+	else
+		bits = MS(OS_REG_READ(ah, AR_GPIO_IN_OUT), AR_GPIO_IN_VAL);
+	return ((bits & AR_GPIO_BIT(gpio)) != 0);
 }
 
 /*
@@ -90,23 +124,70 @@ ar5416GpioGet(struct ath_hal *ah, uint32_t gpio)
 void
 ar5416GpioSetIntr(struct ath_hal *ah, u_int gpio, uint32_t ilevel)
 {
-	uint32_t val;
-	
-	HALASSERT(gpio < AR_NUM_GPIO);
-	/* XXX bounds check gpio */
-	val = MS(OS_REG_READ(ah, AR_GPIO_INTR_OUT), AR_GPIO_INTR_CTRL);
-	if (ilevel)		/* 0 == interrupt on pin high */
-		val &= ~AR_GPIO_BIT(gpio);
-	else			/* 1 == interrupt on pin low */
-		val |= AR_GPIO_BIT(gpio);
-	OS_REG_RMW_FIELD(ah, AR_GPIO_INTR_OUT, AR_GPIO_INTR_CTRL, val);
+	uint32_t val, mask;
 
-	/* Change the interrupt mask. */
-	val = MS(OS_REG_READ(ah, AR_INTR_ASYNC_ENABLE), AR_INTR_GPIO);
-	val |= AR_GPIO_BIT(gpio);
-	OS_REG_RMW_FIELD(ah, AR_INTR_ASYNC_ENABLE, AR_INTR_GPIO, val);
+	HALASSERT(gpio < AH_PRIVATE(ah)->ah_caps.halNumGpioPins);
 
-	val = MS(OS_REG_READ(ah, AR_INTR_ASYNC_MASK), AR_INTR_GPIO);
-	val |= AR_GPIO_BIT(gpio);
-	OS_REG_RMW_FIELD(ah, AR_INTR_ASYNC_MASK, AR_INTR_GPIO, val);	
+	if (ilevel == HAL_GPIO_INTR_DISABLE) {
+		val = MS(OS_REG_READ(ah, AR_INTR_ASYNC_ENABLE),
+			 AR_INTR_ASYNC_ENABLE_GPIO) &~ AR_GPIO_BIT(gpio);
+		OS_REG_RMW_FIELD(ah, AR_INTR_ASYNC_ENABLE,
+		    AR_INTR_ASYNC_ENABLE_GPIO, val);
+
+		mask = MS(OS_REG_READ(ah, AR_INTR_ASYNC_MASK),
+			  AR_INTR_ASYNC_MASK_GPIO) &~ AR_GPIO_BIT(gpio);
+		OS_REG_RMW_FIELD(ah, AR_INTR_ASYNC_MASK,
+		    AR_INTR_ASYNC_MASK_GPIO, mask);
+
+		/* Clear synchronous GPIO interrupt registers and pending interrupt flag */
+		val = MS(OS_REG_READ(ah, AR_INTR_SYNC_ENABLE),
+			 AR_INTR_SYNC_ENABLE_GPIO) &~ AR_GPIO_BIT(gpio);
+		OS_REG_RMW_FIELD(ah, AR_INTR_SYNC_ENABLE,
+		    AR_INTR_SYNC_ENABLE_GPIO, val);
+
+		mask = MS(OS_REG_READ(ah, AR_INTR_SYNC_MASK),
+			  AR_INTR_SYNC_MASK_GPIO) &~ AR_GPIO_BIT(gpio);
+		OS_REG_RMW_FIELD(ah, AR_INTR_SYNC_MASK,
+		    AR_INTR_SYNC_MASK_GPIO, mask);
+
+		val = MS(OS_REG_READ(ah, AR_INTR_SYNC_CAUSE),
+			 AR_INTR_SYNC_ENABLE_GPIO) | AR_GPIO_BIT(gpio);
+		OS_REG_RMW_FIELD(ah, AR_INTR_SYNC_CAUSE,
+		    AR_INTR_SYNC_ENABLE_GPIO, val);
+	} else {
+		val = MS(OS_REG_READ(ah, AR_GPIO_INTR_POL),
+			 AR_GPIO_INTR_POL_VAL);
+		if (ilevel == HAL_GPIO_INTR_HIGH) {
+			/* 0 == interrupt on pin high */
+			val &= ~AR_GPIO_BIT(gpio);
+		} else if (ilevel == HAL_GPIO_INTR_LOW) {
+			/* 1 == interrupt on pin low */
+			val |= AR_GPIO_BIT(gpio);
+		}
+		OS_REG_RMW_FIELD(ah, AR_GPIO_INTR_POL,
+		    AR_GPIO_INTR_POL_VAL, val);
+
+		/* Change the interrupt mask. */
+		val = MS(OS_REG_READ(ah, AR_INTR_ASYNC_ENABLE),
+			 AR_INTR_ASYNC_ENABLE_GPIO) | AR_GPIO_BIT(gpio);
+		OS_REG_RMW_FIELD(ah, AR_INTR_ASYNC_ENABLE,
+		    AR_INTR_ASYNC_ENABLE_GPIO, val);
+
+		mask = MS(OS_REG_READ(ah, AR_INTR_ASYNC_MASK),
+			  AR_INTR_ASYNC_MASK_GPIO) | AR_GPIO_BIT(gpio);
+		OS_REG_RMW_FIELD(ah, AR_INTR_ASYNC_MASK,
+		    AR_INTR_ASYNC_MASK_GPIO, mask);
+
+		/* Set synchronous GPIO interrupt registers as well */
+		val = MS(OS_REG_READ(ah, AR_INTR_SYNC_ENABLE),
+			 AR_INTR_SYNC_ENABLE_GPIO) | AR_GPIO_BIT(gpio);
+		OS_REG_RMW_FIELD(ah, AR_INTR_SYNC_ENABLE,
+		    AR_INTR_SYNC_ENABLE_GPIO, val);
+
+		mask = MS(OS_REG_READ(ah, AR_INTR_SYNC_MASK),
+			  AR_INTR_SYNC_MASK_GPIO) | AR_GPIO_BIT(gpio);
+		OS_REG_RMW_FIELD(ah, AR_INTR_SYNC_MASK,
+		    AR_INTR_SYNC_MASK_GPIO, mask);
+	}
+	AH5416(ah)->ah_gpioMask = mask;		/* for ar5416SetInterrupts */
 }

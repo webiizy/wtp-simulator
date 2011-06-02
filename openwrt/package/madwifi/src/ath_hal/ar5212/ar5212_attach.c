@@ -255,6 +255,9 @@ ar5212InitState(struct ath_hal_5212 *ahp, uint16_t devid, HAL_SOFTC sc,
 	ahp->ah_acktimeout = (u_int) -1;
 	ahp->ah_ctstimeout = (u_int) -1;
 	ahp->ah_sifstime = (u_int) -1;
+	ahp->ah_txTrigLev = INIT_TX_FIFO_THRESHOLD,
+	ahp->ah_maxTxTrigLev = MAX_TX_FIFO_THRESHOLD,
+
 	OS_MEMCPY(&ahp->ah_bssidmask, defbssidmask, IEEE80211_ADDR_LEN);
 #undef N
 }
@@ -840,13 +843,26 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 	ahpriv->ah_rxornIsFatal =
 	    (AH_PRIVATE(ah)->ah_macVersion < AR_SREV_VERSION_VENICE);
 
-	/* h/w phy counters first appeared in Hainan */
-	pCap->halHwPhyCounterSupport =
-	    (AH_PRIVATE(ah)->ah_macVersion == AR_SREV_VERSION_VENICE &&
+	/* enable features that first appeared in Hainan */
+	if ((AH_PRIVATE(ah)->ah_macVersion == AR_SREV_VERSION_VENICE &&
 	     AH_PRIVATE(ah)->ah_macRev == AR_SREV_HAINAN) ||
-	    AH_PRIVATE(ah)->ah_macVersion > AR_SREV_VERSION_VENICE;
+	    AH_PRIVATE(ah)->ah_macVersion > AR_SREV_VERSION_VENICE) {
+		/* h/w phy counters */
+		pCap->halHwPhyCounterSupport = AH_TRUE;
+		/* bssid match disable */
+		pCap->halBssidMatchSupport = AH_TRUE;
+	}
 
 	pCap->halTstampPrecision = 15;
+	pCap->halIntrMask = HAL_INT_COMMON
+			| HAL_INT_RX
+			| HAL_INT_TX
+			| HAL_INT_FATAL
+			| HAL_INT_BNR
+			| HAL_INT_BMISC
+			;
+	if (AH_PRIVATE(ah)->ah_macVersion < AR_SREV_VERSION_GRIFFIN)
+		pCap->halIntrMask &= ~HAL_INT_TBTT;
 
 	return AH_TRUE;
 #undef IS_COBRA

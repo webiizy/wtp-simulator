@@ -486,6 +486,11 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_RXTSTAMP_PREC:	/* rx desc tstamp precision (bits) */
 		*result = pCap->halTstampPrecision;
 		return HAL_OK;
+	case HAL_CAP_INTRMASK:		/* mask of supported interrupts */
+		*result = pCap->halIntrMask;
+		return HAL_OK;
+	case HAL_CAP_BSSIDMATCH:	/* hardware has disable bssid match */
+		return pCap->halBssidMatchSupport ? HAL_OK : HAL_ENOTSUPP;
 	default:
 		return HAL_EINVAL;
 	}
