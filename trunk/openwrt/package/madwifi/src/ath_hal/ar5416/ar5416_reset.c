@@ -116,31 +116,16 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 #define	FAIL(_code)	do { ecode = _code; goto bad; } while (0)
 	struct ath_hal_5212 *ahp = AH5212(ah);
 	HAL_CHANNEL_INTERNAL *ichan;
-	uint32_t softLedCfg;
 	uint32_t saveDefAntenna, saveLedState;
 	uint32_t macStaId1;
 	uint16_t rfXpdGain[2];
-	u_int modesIndex, freqIndex;
+	//u_int modesIndex, freqIndex;
 	HAL_STATUS ecode;
 	int i, regWrites = 0;
 	uint32_t powerVal, rssiThrReg;
 	uint32_t ackTpcPow, ctsTpcPow, chirpTpcPow;
 
 	OS_MARK(ah, AH_MARK_RESET, bChannelChange);
-#define	IS(_c,_f)	(((_c)->channelFlags & _f) || 0)
-	if ((IS(chan, CHANNEL_2GHZ) ^ IS(chan, CHANNEL_5GHZ)) == 0) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s: invalid channel %u/0x%x; not marked as 2GHz or 5GHz\n",
-		    __func__, chan->channel, chan->channelFlags);
-		FAIL(HAL_EINVAL);
-	}
-	if ((IS(chan, CHANNEL_OFDM) ^ IS(chan, CHANNEL_CCK)) == 0) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s: invalid channel %u/0x%x; not marked as OFDM or CCK\n",
-		    __func__, chan->channel, chan->channelFlags);
-		FAIL(HAL_EINVAL);
-	}
-#undef IS
 
 	/* Bring out of sleep mode */
 	if (!ar5416SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE)) {
@@ -153,16 +138,8 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	 * Map public channel to private.
 	 */
 	ichan = ath_hal_checkchannel(ah, chan);
-	if (ichan == AH_NULL) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s: invalid channel %u/0x%x; no mapping\n",
-		    __func__, chan->channel, chan->channelFlags);
+	if (ichan == AH_NULL)
 		FAIL(HAL_EINVAL);
-	} else {
-		HALDEBUG(ah, HAL_DEBUG_RESET,
-		    "%s: Ch=%u Max=%d Min=%d\n",__func__,
-		    ichan->channel, ichan->maxTxPower, ichan->minTxPower);
-	}
 	switch (opmode) {
 	case HAL_M_STA:
 	case HAL_M_IBSS:
@@ -202,13 +179,6 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	saveLedState = OS_REG_READ(ah, AR_MAC_LED) &
 		(AR_MAC_LED_ASSOC | AR_MAC_LED_MODE |
 		 AR_MAC_LED_BLINK_THRESH_SEL | AR_MAC_LED_BLINK_SLOW);
-	softLedCfg = OS_REG_READ(ah, AR_GPIO_INTR_OUT);	
-
-	/*
-	 * Adjust gain parameters before reset if
-	 * there's an outstanding gain updated.
-	 */
-	(void) ar5416GetRfgain(ah);
 
 	if (!ar5416ChipReset(ah, chan)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: chip reset failed\n", __func__);
@@ -218,83 +188,20 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	/* Restore bmiss rssi & count thresholds */
 	OS_REG_WRITE(ah, AR_RSSI_THR, rssiThrReg);
 
-	/* Setup the indices for the next set of register array writes */
-	/* XXX Ignore 11n dynamic mode on the AR5416 for the moment */
-	switch (chan->channelFlags & CHANNEL_ALL) {
-	case CHANNEL_A:
-    	case CHANNEL_A_HT20:
-                modesIndex = 1;
-                freqIndex  = 1;
-		break;
-    	case CHANNEL_T:
-    	case CHANNEL_A_HT40PLUS:
-    	case CHANNEL_A_HT40MINUS:
-                modesIndex = 2;
-                freqIndex  = 1;
-	    	break;
-	case CHANNEL_PUREG:
-	case CHANNEL_G_HT20:
-	case CHANNEL_B:	/* treat as channel G , no  B mode suport in owl */
-		modesIndex = 4;
-		freqIndex  = 2;
-		break;
-    	case CHANNEL_G_HT40PLUS:
-    	case CHANNEL_G_HT40MINUS:
-		modesIndex = 3;
-		freqIndex  = 2;
-		break;
-	case CHANNEL_108G:
-		modesIndex = 5;
-		freqIndex  = 2;
-		break;
-	default:
-		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid channel flags 0x%x\n",
-		    __func__, chan->channelFlags);
-		FAIL(HAL_EINVAL);
-	}
-
 	OS_MARK(ah, AH_MARK_RESET_LINE, __LINE__);
+	if (AR_SREV_MERLIN_10_OR_LATER(ah))
+		OS_REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL, AR_GPIO_JTAG_DISABLE);
 
-	/* Set correct Baseband to analog shift setting to access analog chips. */
-	OS_REG_WRITE(ah, AR_PHY(0), 0x00000007);
-
-	 /*
-	 * Write addac shifts
-	 */
-	OS_REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_EXTERNAL_RADIO);
-#if 0
-	/* NB: only required for Sowl */
-	ar5416EepromSetAddac(ah, ichan);
-#endif
-	regWrites = ath_hal_ini_write(ah, &AH5416(ah)->ah_ini_addac, 1,
-	    regWrites);
-	OS_REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_INTERNAL_ADDAC);
-
-	/* XXX Merlin ini fixups */
-	/* XXX Merlin 100us delay for shift registers */
-	regWrites = ath_hal_ini_write(ah, &ahp->ah_ini_modes, modesIndex,
-	    regWrites);
-#ifdef AH_SUPPORT_AR9280
-	if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
-		regWrites = ath_hal_ini_write(ah, &AH9280(ah)->ah_ini_rxgain,
-		    modesIndex, regWrites);
-		regWrites = ath_hal_ini_write(ah, &AH9280(ah)->ah_ini_txgain,
-		    modesIndex, regWrites);
+	if (AR_SREV_KITE(ah)) {
+		uint32_t val;
+		val = OS_REG_READ(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS);
+		val &= ~AR_PHY_RIFS_INIT_DELAY;
+		OS_REG_WRITE(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS, val);
 	}
-#endif
 	/* XXX Merlin 100us delay for shift registers */
 	regWrites = ath_hal_ini_write(ah, &ahp->ah_ini_common, 1, regWrites);
 	/* Setup 11n MAC/Phy mode registers */
-	ar5416Set11nRegs(ah,chan);	
-	/* XXX updated regWrites? */
-	ahp->ah_rfHal->writeRegs(ah, modesIndex, freqIndex, regWrites);
-#ifdef AH_SUPPORT_AR9280
-	if (AR_SREV_MERLIN_20(ah) && IS_5GHZ_FAST_CLOCK_EN(ah, chan)) {
-		/* 5GHz channels w/ Fast Clock use different modal values */
-		regWrites = ath_hal_ini_write(ah, &AH9280(ah)->ah_ini_xmodes,
-		    modesIndex, regWrites);
-	}
-#endif
+	ar5416Set11nRegs(ah, chan);	
 
 	OS_MARK(ah, AH_MARK_RESET_LINE, __LINE__);
 
@@ -339,7 +246,8 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	}
 
 	/* Write the analog registers */
-	if (!ahp->ah_rfHal->setRfRegs(ah, ichan, freqIndex, rfXpdGain)) {
+	if (!ahp->ah_rfHal->setRfRegs(ah, ichan, 
+		IS_CHAN_2GHZ(ichan) ? 2: 1, rfXpdGain)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: ar5212SetRfRegs failed\n", __func__);
 		FAIL(HAL_EIO);
@@ -379,8 +287,6 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	/* Restore previous led state */
 	OS_REG_WRITE(ah, AR_MAC_LED, OS_REG_READ(ah, AR_MAC_LED) | saveLedState);
-	/* Restore soft Led state to GPIO */
-	OS_REG_WRITE(ah, AR_GPIO_INTR_OUT, softLedCfg);
 
 	/* Restore previous antenna */
 	OS_REG_WRITE(ah, AR_DEF_ANTENNA, saveDefAntenna);
@@ -576,6 +482,7 @@ ar5416ChannelChange(struct ath_hal *ah, HAL_CHANNEL *chan)
 static void
 ar5416InitDMA(struct ath_hal *ah)
 {
+	struct ath_hal_5212 *ahp = AH5212(ah);
 
 	/*
 	 * set AHB_MODE not to do cacheline prefetches
@@ -594,7 +501,10 @@ ar5416InitDMA(struct ath_hal *ah)
 	OS_REG_WRITE(ah, AR_RXCFG, 
 		(OS_REG_READ(ah, AR_RXCFG) & ~AR_RXCFG_DMASZ_MASK) | AR_RXCFG_DMASZ_128B);
 
-	/* XXX restore TX trigger level */
+	/* restore TX trigger level */
+	OS_REG_WRITE(ah, AR_TXCFG,
+		(OS_REG_READ(ah, AR_TXCFG) &~ AR_FTRIG) |
+		    SM(ahp->ah_txTrigLev, AR_FTRIG));
 
 	/*
 	 * Setup receive FIFO threshold to hold off TX activities
@@ -1681,21 +1591,14 @@ ar5416PhyDisable(struct ath_hal *ah)
 HAL_BOOL
 ar5416SetResetReg(struct ath_hal *ah, uint32_t type)
 {
-	/*
-	 * Set force wake
-	 */
-	OS_REG_WRITE(ah, AR_RTC_FORCE_WAKE,
-	     AR_RTC_FORCE_WAKE_EN | AR_RTC_FORCE_WAKE_ON_INT);
-
 	switch (type) {
 	case HAL_RESET_POWER_ON:
 		return ar5416SetResetPowerOn(ah);
-		break;
 	case HAL_RESET_WARM:
 	case HAL_RESET_COLD:
 		return ar5416SetReset(ah, type);
-		break;
 	default:
+		HALASSERT(AH_FALSE);
 		return AH_FALSE;
 	}
 }
@@ -1720,8 +1623,11 @@ ar5416SetResetPowerOn(struct ath_hal *ah)
     /*
      * RTC reset and clear
      */
+    OS_REG_WRITE(ah, AR_RC, AR_RC_AHB);
     OS_REG_WRITE(ah, AR_RTC_RESET, 0);
     OS_DELAY(20);
+    OS_REG_WRITE(ah, AR_RC, 0);
+
     OS_REG_WRITE(ah, AR_RTC_RESET, 1);
 
     /*
@@ -1764,11 +1670,11 @@ ar5416SetReset(struct ath_hal *ah, int type)
     case HAL_RESET_WARM:
             OS_REG_WRITE(ah, AR_RTC_RC, AR_RTC_RC_MAC_WARM);
             break;
-        case HAL_RESET_COLD:
+    case HAL_RESET_COLD:
             OS_REG_WRITE(ah, AR_RTC_RC, AR_RTC_RC_MAC_WARM|AR_RTC_RC_MAC_COLD);
             break;
-        default:
-            HALASSERT(0);
+    default:
+            HALASSERT(AH_FALSE);
             break;
     }
 
@@ -2441,7 +2347,8 @@ ar5416GetTargetPowersLeg(struct ath_hal *ah,
  * linear voltage to power level table.
  */
 static HAL_BOOL
-ar5416SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData, HAL_CHANNEL_INTERNAL *chan, int16_t *pTxPowerIndexOffset)
+ar5416SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
+	HAL_CHANNEL_INTERNAL *chan, int16_t *pTxPowerIndexOffset)
 {
     CAL_DATA_PER_FREQ *pRawDataset;
     uint8_t  *pCalBChans = AH_NULL;

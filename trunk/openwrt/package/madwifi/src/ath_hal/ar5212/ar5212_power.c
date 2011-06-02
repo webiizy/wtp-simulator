@@ -38,8 +38,8 @@ static HAL_BOOL
 ar5212SetPowerModeAwake(struct ath_hal *ah, int setChip)
 {
 #define	AR_SCR_MASK \
-    (AR_SCR_SLDUR|AR_SCR_SLE|AR_SCR_SLE|AR_SCR_SLDTP|AR_SCR_SLDWP|\
-     AR_SCR_SLEPOL|AR_SCR_MIBIE)
+    (AR_SCR_SLDUR|AR_SCR_SLE|AR_SCR_SLDTP|AR_SCR_SLDWP|\
+     AR_SCR_SLEPOL|AR_SCR_MIBIE|AR_SCR_UNKNOWN)
 #define	POWER_UP_TIME	2000
 	uint32_t scr, val;
 	int i;

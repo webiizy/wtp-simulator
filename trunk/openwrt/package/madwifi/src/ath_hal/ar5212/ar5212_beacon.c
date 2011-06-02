@@ -76,7 +76,8 @@ ar5212BeaconInit(struct ath_hal *ah,
 	 * interrupt; otherwise it sets the start of the next CFP.
 	 */
 	switch (AH_PRIVATE(ah)->ah_opmode) {
-	default:
+	case HAL_M_STA:
+	case HAL_M_MONITOR:
 		bt.bt_nextdba = 0xffff;
 		bt.bt_nextswba = 0x7ffff;
 		break;

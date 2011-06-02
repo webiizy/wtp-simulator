@@ -68,13 +68,15 @@ ar5212GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 			mask2 |= HAL_INT_DTIM;
 		if (isr2 & AR_ISR_S2_DTIMSYNC)
 			mask2 |= HAL_INT_DTIMSYNC;
-		if (isr2 & (AR_ISR_S2_CABEND ))
+		if (isr2 & AR_ISR_S2_CABEND)
 			mask2 |= HAL_INT_CABEND;
+		if (isr2 & AR_ISR_S2_TBTT)
+			mask2 |= HAL_INT_TBTT;
 	}
 	isr = OS_REG_READ(ah, AR_ISR_RAC);
 	if (isr == 0xffffffff) {
 		*masked = 0;
-		return AH_FALSE;;
+		return AH_FALSE;
 	}
 
 	*masked = isr & HAL_INT_COMMON;
@@ -171,7 +173,9 @@ ar5212SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 		if (ints & HAL_INT_DTIMSYNC)
 			mask2 |= AR_IMR_S2_DTIMSYNC;
 		if (ints & HAL_INT_CABEND)
-			mask2 |= (AR_IMR_S2_CABEND );
+			mask2 |= AR_IMR_S2_CABEND;
+		if (ints & HAL_INT_TBTT)
+			mask2 |= AR_IMR_S2_TBTT;
 	}
 	if (ints & HAL_INT_FATAL) {
 		/*
@@ -184,15 +188,8 @@ ar5212SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 	/* Write the new IMR and store off our SW copy. */
 	HALDEBUG(ah, HAL_DEBUG_INTERRUPT, "%s: new IMR 0x%x\n", __func__, mask);
 	OS_REG_WRITE(ah, AR_IMR, mask);
-	OS_REG_WRITE(ah, AR_IMR_S2, 
-				 (OS_REG_READ(ah, AR_IMR_S2) & 
-				  ~(AR_IMR_S2_TIM |
-					AR_IMR_S2_DTIM |
-					AR_IMR_S2_DTIMSYNC |
-					AR_IMR_S2_CABEND |
-					AR_IMR_S2_CABTO  |
-					AR_IMR_S2_TSFOOR ) ) 
-				 | mask2);
+	OS_REG_WRITE(ah, AR_IMR_S2,
+	    (OS_REG_READ(ah, AR_IMR_S2) &~ AR_IMR_SR2_BCNMISC) | mask2);
 	ahp->ah_maskReg = ints;
 
 	/* Re-enable interrupts if they were enabled before. */
