@@ -115,10 +115,7 @@ ath_hal-objs	:= \
 	ar5416/ar5416_xmit.o \
 	ar5416/ar9160_attach.o \
 	ar5416/ar9280.o \
-	ar5416/ar9280_attach.o \
-	ar5416/ar9285.o \
-	ar5416/ar9285_attach.o \
-	ar5416/ar9285_reset.o
+	ar5416/ar9280_attach.o
 
 ifeq ($(strip $(BUS)),AHB)
 ifeq ($(CONFIG_64BIT)),)

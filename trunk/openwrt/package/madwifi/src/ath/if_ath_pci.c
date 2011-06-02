@@ -120,7 +120,6 @@ static struct pci_device_id ath_pci_id_table[] __devinitdata = {
 	{ 0x168c, 0x002a, PCI_ANY_ID, PCI_ANY_ID }, /* AR9280 PCI Express */
 	{ 0x168c, 0x9013, PCI_ANY_ID, PCI_ANY_ID }, /* sonicwall */
 	{ 0x168c, 0xff1a, PCI_ANY_ID, PCI_ANY_ID },
-	{ 0x168c, 0x002b, PCI_ANY_ID, PCI_ANY_ID }, /* AR9285 */
 	{ 0 }
 };
 
@@ -199,7 +198,7 @@ ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * set it to the value used by other systems.  It may be worth
 	 * tweaking this setting more.
 	 */
-	pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0x60);
+    pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0xa8);
 
 	pci_set_master(pdev);
 
@@ -268,23 +267,7 @@ ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 	}
 
-#if 0
-	/*
-	 * Auto-enable soft led processing for IBM cards and for
-	 * 5211 minipci cards.  Users can also manually enable/disable
-	 * support with a sysctl.
-	 */
-	if (vdevice == AR5212_DEVID_IBM || vdevice == AR5211_DEVID) {
-		sc->aps_sc.sc_softled = 1;
-		sc->aps_sc.sc_ledpin = 0;
-	}
 
-	/* Enable softled on PIN1 on HP Compaq nc6xx, nc4000 & nx5000 laptops */
-	if (pdev->subsystem_vendor == PCI_VENDOR_ID_COMPAQ) {
-		sc->aps_sc.sc_softled = 1;
-		sc->aps_sc.sc_ledpin = 1;
-	}
-#endif
 
 	if ((i = ath_attach(vdevice, dev, NULL)) != 0) {
 		printk(KERN_ERR "%s: ath_attach failed: %d\n", dev_info, i);
